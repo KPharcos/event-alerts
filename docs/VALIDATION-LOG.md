@@ -301,3 +301,99 @@ Skipped: did not commit. Renderer added `reports/review/` to `.gitignore` (uncom
 ### Follow-up prompt (15)
 
 Commit both!
+
+---
+
+## 2026-11-19 — after prompt 15 (commit admin fix + gitignore)
+
+### Response
+
+Committed `20de65a`: admin user-field fix + its test, `.gitignore` gets `reports/review/`, and the two log files. Tree clean.
+
+Not pushed. `main` is 4 commits ahead of GitHub (pass 3, pass 4 + prompt-12 fixes, this one, and the earlier pass-2 commit). Say "push" to send them.
+
+### Follow-up prompt (16)
+
+Make a docs/PLAN.md from _bmad-output/implementation-artifacts/spec-world-event-alerts.md
+
+---
+
+## 2026-11-19 — after prompt 16 (docs/PLAN.md)
+
+### Response
+
+Wrote `docs/PLAN.md` from the spec. Not committed.
+
+It merges the original plan with every later decision, so it shows the app as it is now:
+- Goal, approach, scope in/out.
+- Decisions table: 15 rows, who made each (owner vs triage) and when.
+- Architecture diagram (mermaid), links to `CODEBASE_MAP.md` and `PROMPTS.md`.
+- Work items (all done), acceptance criteria with status, edge-case matrix with the test for each row (13 rows; I added OLD_EVENT and CLAUDE_DOWN from later decisions).
+- Configuration table, cron line, verification commands, review history (4 passes + review report).
+- Open items: never run against real Claude/SMTP/Slack, no market feed, 4 commits unpushed, production hardening left out, accepted limits.
+
+Triage logs not copied (they stay in the spec). Test names in the plan checked against `alerts/tests.py`.
+
+Skipped: did not commit. Risk: plan is a snapshot; the spec stays the source of truth.
+
+### Follow-up prompt (17)
+
+Make a docs/DECISIONS.md based on every doc!
+
+---
+
+## 2026-11-19 — after prompt 17 (docs/DECISIONS.md)
+
+### Response
+
+Wrote `docs/DECISIONS.md`, built from PROMPTS, VALIDATION-LOG, PLAN, CODEBASE_MAP, README and the BMAD spec (change log, design notes, all 4 triage logs). Not committed.
+
+- Index table, then one entry per decision: context, options offered, choice, consequences, who decided (owner / triage / design), status (accepted / superseded / rejected).
+- 50 decisions in 7 groups: product (P1–P9), architecture (A1–A9), matching rules (T1–T9), security (S1–S10), rejected features (R1–R7), process & repo (W1–W9), docs.
+- Superseded chains made explicit: 400 handling T1 → T2 → T3; zero-channel T9 → P9; "deployment out of scope" → S7.
+- Flags what was decided by triage, not by you (T3 400-retry, T4 breaker, T6–T8), and the one carried rejection with a false premise (S4).
+
+Skipped: did not commit. Risk: hand-merged from many docs; spec stays the source of truth if they disagree.
+
+### Follow-up prompt (18)
+
+Do not ignore reports/review/, it will be commited!
+
+---
+
+## 2026-11-19 — after prompt 18 (stop ignoring reports/review/)
+
+### Response
+
+`reports/review/` is no longer ignored. `git check-ignore` confirms it, and `reports/` now shows as untracked.
+
+The review-report renderer re-adds `reports/review/` to `.gitignore` on every render unless that line already exists. So `.gitignore` keeps the line and un-ignores the folder right after it with `!reports/review/`, plus a comment explaining why. Saved as a memory rule.
+
+Not committed. Pending: `.gitignore`, `docs/PLAN.md`, `docs/DECISIONS.md`, the report folder, log updates.
+
+Risk: the report was rendered before `20de65a`, so it shows the old admin code. It needs a re-render to show the admin fix in the diff.
+
+### Follow-up prompt (19)
+
+Yes, and make some screenshots about the running app!
+
+---
+
+## 2026-11-19 — after prompt 19 (re-render report + app screenshots)
+
+### Response
+
+Done and committed locally (not pushed).
+
+- **Report re-rendered** against HEAD, so the admin fix (`fields` with `user`, `admin.py` line 29) is now in the diff with its own note and test. `reports/review/` stays tracked.
+- **9 screenshots** in `docs/screenshots/`, linked from a new README "Screenshots" section:
+  - user side: login, a user's alert list, new alert form, Slack URL rejected
+  - admin side: home, events, read-only notification log, alerts, alert with its channels (owner field visible, which proves the fix)
+- **How they were made:**
+  - Dev server on a scratch database, so the repo's `db.sqlite3` is untouched.
+  - 36 real events from the live USGS, BBC and GDACS feeds, plus one manual market event.
+  - Demo users and alerts use `example.com` addresses.
+  - Headless Chrome driven from a small Node script.
+  - The notifications were staged with matching alerts (Chile quake, Australian fire, Brent oil); Claude was not called, and the README says so.
+
+Skipped: no live Claude/SMTP/Slack. Risk: user pages are plain unstyled HTML, which the screenshots show as-is; GitHub is now 5 commits behind.

@@ -177,3 +177,19 @@ Fix those!
 ## 2026-11-19 — 15
 
 Commit both!
+
+## 2026-11-19 — 16
+
+Make a docs/PLAN.md from _bmad-output/implementation-artifacts/spec-world-event-alerts.md
+
+## 2026-11-19 — 17
+
+Make a docs/DECISIONS.md based on every doc!
+
+## 2026-11-19 — 18
+
+Do not ignore reports/review/, it will be commited!
+
+## 2026-11-19 — 19
+
+Yes, and make some screenshots about the running app!

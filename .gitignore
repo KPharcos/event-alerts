@@ -8,5 +8,7 @@ db.sqlite3
 _bmad/
 .claude/
 staticfiles/
-# review-report output
+# review-report output is committed. The plain line stops the renderer from re-adding
+# the ignore on every render; the negation right after it keeps the folder tracked.
 reports/review/
+!reports/review/

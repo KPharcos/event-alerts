@@ -20,6 +20,19 @@ In production (`DJANGO_DEBUG` off) run `uv run python manage.py collectstatic` a
 - Admin: `/admin/` — create users here (there is no public sign-up), plus alerts, channels, manual events, and the notification log.
 - Users: log in at `/accounts/login/` to manage their own alerts.
 
+## Screenshots
+
+Taken from a local run with real events from the live feeds (USGS, BBC, GDACS) and demo users;
+the notifications shown were staged, not produced by Claude.
+
+| | |
+|---|---|
+| ![Login](docs/screenshots/01-login.png) Login | ![My alerts](docs/screenshots/02-my-alerts.png) A user's alerts |
+| ![New alert](docs/screenshots/03-new-alert-form.png) New alert form | ![Validation](docs/screenshots/04-validation-errors.png) Non-Slack webhook URL rejected |
+| ![Admin](docs/screenshots/05-admin-home.png) Admin home | ![Events](docs/screenshots/06-admin-events.png) Events from the feeds |
+| ![Notifications](docs/screenshots/07-admin-notification-log.png) Read-only notification log | ![Alerts](docs/screenshots/08-admin-alerts.png) Alerts in admin |
+| ![Alert with channels](docs/screenshots/09-admin-alert-with-channels.png) Alert with its channels | |
+
 ## Environment variables
 
 | Variable | Purpose | Default |

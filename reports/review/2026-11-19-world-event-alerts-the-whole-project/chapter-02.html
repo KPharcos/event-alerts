@@ -1,0 +1,902 @@
+<!doctype html>
+<html lang="en" data-theme="light" data-notes="margin" data-diff="unified" data-report-id="world-event-alerts-the-whole-project-d027b7e6">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2. Where events come from: USGS, RSS and GDACS · World event alerts: the whole project</title>
+<script>
+// Apply theme before first paint to avoid a flash. Mirrors report.js logic.
+(function(){try{var d=document.documentElement,t=localStorage.getItem('review-report-theme');if(!t){t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'}d.dataset.theme=t;var n=localStorage.getItem('review-report-notes');if(n==='inline'||n==='margin'){d.dataset.notes=n}var f=localStorage.getItem('review-report-diff');if(f==='split'||f==='unified'){d.dataset.diff=f}}catch(e){}})();
+</script>
+<link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.12.0/styles/github.min.css" integrity="sha384-eFTL69TLRZTkNfYZOLM+G04821K1qZao/4QLJbet1pP4tcF+fdXq/9CdqAbWRl/L" crossorigin="anonymous">
+<link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.12.0/styles/github-dark.min.css" integrity="sha384-wH75j6z1lH97ZOpMOInqhgKzFkAInZPPSPlZpYKYTOqsaizPvhQZmAtLcPKXpLyH" crossorigin="anonymous" disabled>
+<style>/* review-report page styles. Light is the default token set; dark overrides under [data-theme="dark"].
+   Diff colors follow GitHub's palette; every text/background pair meets WCAG AA. */
+:root {
+  --bg: #ffffff; --fg: #1f2328; --muted: #59636e; --border: #d0d7de; --surface: #f6f8fa; --link: #0969da;
+  --add-bg: #dafbe1; --add-num-bg: #aceebb; --del-bg: #ffebe9; --del-num-bg: #ffcecb; --hunk-bg: #ddf4ff; --hunk-fg: #0550ae;
+  --callout-bg: #fff8c5; --callout-border: #d4a72c; --code-bg: #f6f8fa; --add-fg: #1a7f37; --del-fg: #cf222e;
+  --marker-bg: #d4a72c; --marker-fg: #1f2328;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+[data-theme="dark"] {
+  --bg: #0d1117; --fg: #e6edf3; --muted: #9198a1; --border: #30363d; --surface: #161b22; --link: #4493f8;
+  --add-bg: #12261e; --add-num-bg: #1f4a2c; --del-bg: #2d1418; --del-num-bg: #5a2226; --hunk-bg: #121d2f; --hunk-fg: #79c0ff;
+  --callout-bg: #272115; --callout-border: #9e6a03; --code-bg: #161b22; --add-fg: #3fb950; --del-fg: #f85149;
+  --marker-bg: #d29922; --marker-fg: #0d1117;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.55 var(--font); }
+a { color: var(--link); }
+code, pre { font-family: var(--mono); font-size: 13px; }
+p code, li code, .callout code, .intro code { background: var(--code-bg); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; }
+pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px; overflow: auto; }
+.muted { color: var(--muted); }
+dl.glossary { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; }
+dl.glossary dt { font-family: var(--mono); font-size: 13px; font-weight: 600; }
+dl.glossary dd { margin: 0; }
+
+.layout { display: grid; grid-template-columns: 280px minmax(0, 1fr); min-height: 100vh; }
+.sidebar { position: sticky; top: 0; height: 100vh; overflow: auto; padding: 16px; border-right: 1px solid var(--border); background: var(--surface); }
+.sidebar h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 20px 0 8px; }
+.toc, .file-index ul { list-style: none; margin: 0; padding: 0; }
+.toc li, .file-index li { margin: 4px 0; font-size: 14px; }
+.toc a, .file-index a { text-decoration: none; }
+.toc a:hover, .file-index a:hover { text-decoration: underline; }
+.file-index li { display: flex; gap: 6px; align-items: baseline; }
+/* Long paths share a prefix and differ at the end, so the ellipsis goes at the start: the box is
+   right-to-left, which moves the clipped side; the <bdi> around the path keeps it reading left to right. */
+.file-index a { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); font-size: 12px; direction: rtl; text-align: left; }
+.file-index .add { color: var(--add-fg); font-size: 12px; }
+.file-index .del { color: var(--del-fg); font-size: 12px; }
+#theme-toggle, #notes-toggle, #diff-toggle { font: inherit; font-size: 12px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--fg); cursor: pointer; }
+
+main { padding: 24px 40px 80px; max-width: 1400px; }
+.report-header h1 { margin: 0 0 4px; font-size: 26px; }
+.report-header .coverage { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
+.report-header .target { margin: 0; color: var(--muted); font-family: var(--mono); font-size: 13px; }
+section { margin-top: 40px; }
+h2 { font-size: 20px; border-bottom: 1px solid var(--border); padding-bottom: 6px; margin: 0 0 12px; }
+.intro { margin-bottom: 16px; }
+.diagram { margin: 16px 0; }
+/* Its own row above the diagram, right-aligned, so it never covers part of the drawing. */
+.diagram-size { display: block; margin: 0 0 4px auto; font: inherit; font-size: 12px; padding: 2px 8px;
+  border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--fg); cursor: pointer; }
+.diagram-size[hidden] { display: none; }
+.diagram.full pre.mermaid { overflow-x: auto; } /* full size: the diagram keeps its width and the box scrolls */
+.diagram pre.mermaid { background: var(--surface); text-align: center; }
+/* Nodes marked `new` or `changed` keep their light green and yellow fills in both themes, so their
+   text stays dark. Mermaid's dark theme would make it light and almost invisible on those fills. */
+pre.mermaid g.node.new .nodeLabel, pre.mermaid g.node.changed .nodeLabel { color: #1f2328 !important; }
+pre.mermaid g.node.new text, pre.mermaid g.node.changed text { fill: #1f2328 !important; }
+figcaption { color: var(--muted); font-size: 14px; margin-top: 6px; }
+
+.file { border: 1px solid var(--border); border-radius: 6px; margin: 16px 0; overflow: clip; }
+.file-header { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--surface); border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 6; } /* stays on screen while its file scrolls past, so Viewed is always one click away */
+.file-header .path { font-family: var(--mono); font-size: 13px; flex: 1; }
+.status { font-size: 11px; text-transform: uppercase; padding: 1px 6px; border-radius: 10px; border: 1px solid var(--border); color: var(--muted); }
+.status.added { color: var(--add-fg); border-color: var(--add-fg); }
+.status.deleted { color: var(--del-fg); border-color: var(--del-fg); }
+/* Only the code column scrolls, and only sideways. A box with overflow-x: auto would also scroll vertically
+   on the slightest overflow and capture the mouse wheel, so the vertical axis is pinned to hidden. */
+.file-body { overflow: visible; }
+
+table.diff { width: 100%; border-collapse: collapse; table-layout: fixed; }
+table.diff td { padding: 0 8px; vertical-align: top; white-space: pre; line-height: 20px; }
+table.diff col.num { width: 52px; }
+table.diff.split col.num { width: 44px; }
+table.diff td.num { text-align: right; color: var(--muted); user-select: none; font-family: var(--mono); font-size: 12px; }
+table.diff td.code { white-space: pre-wrap; word-break: break-word; }
+table.diff td.code code { background: none; border: 0; padding: 0; font-size: 13px; }
+tr.hunk-header td { background: var(--hunk-bg); color: var(--hunk-fg); font-family: var(--mono); font-size: 12px; padding: 4px 8px; }
+tr.add td.code { background: var(--add-bg); }
+tr.add td.num, tr.del td.num, table.diff.split td.num.add, table.diff.split td.num.del { color: var(--fg); } /* --muted fails AA on the tinted cells */
+tr.add td.num { background: var(--add-num-bg); }
+tr.del td.code { background: var(--del-bg); }
+tr.del td.num { background: var(--del-num-bg); }
+tr.add td.code::before { content: "+"; color: var(--muted); margin-right: 6px; }
+tr.del td.code::before { content: "-"; color: var(--muted); margin-right: 6px; }
+tr.ctx td.code::before { content: " "; margin-right: 6px; }
+tr.comment td { padding: 8px 12px 8px 116px; background: var(--bg); white-space: normal; }
+.callout { border: 1px solid var(--callout-border); border-left-width: 4px; background: var(--callout-bg); border-radius: 6px; padding: 8px 12px; font-size: 14px; }
+.callout p { margin: 0 0 6px; } .callout p:last-child { margin: 0; }
+table.diff.split tr.comment td { padding-left: 56px; }
+table.diff.split td.add { background: var(--add-bg); }
+table.diff.split td.num.add { background: var(--add-num-bg); }
+table.diff.split td.del { background: var(--del-bg); }
+table.diff.split td.num.del { background: var(--del-num-bg); }
+table.diff.split td.empty { background: var(--surface); }
+.custom table { border-collapse: collapse; } .custom th, .custom td { border: 1px solid var(--border); padding: 4px 10px; text-align: left; }
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--border); }
+  main { padding: 16px; }
+}
+
+/* Notes layout. data-notes on <html> is the user's choice (margin | inline); the page script
+   substitutes "below" for margin when the file block is too narrow or in split view. */
+.file-body { display: grid; grid-template-columns: minmax(0, 1fr); position: relative; }
+.file-body.has-margin { grid-template-columns: minmax(0, 1fr) 340px; }
+.diff-col { min-width: 0; overflow-x: auto; overflow-y: hidden; }
+.notes-col { display: none; position: relative; border-left: 1px solid var(--border); background: var(--surface); }
+.file-body.has-margin .notes-col { display: block; }
+.notes-col .note { position: absolute; left: 12px; right: 12px; display: flex; gap: 6px; align-items: flex-start; }
+.notes-col .note .callout, .notes-below .note .callout { flex: 1; min-width: 0; }
+.note-marker { display: inline-block; min-width: 18px; height: 18px; line-height: 18px; text-align: center; border-radius: 9px; background: var(--marker-bg); color: var(--marker-fg); font: 600 11px/18px var(--font); padding: 0 5px; vertical-align: middle; }
+td.code .note-marker { float: right; margin-left: 8px; cursor: pointer; }
+td.code .note-marker:hover { filter: brightness(1.15); }
+.note.active .callout { box-shadow: 0 0 0 2px var(--callout-border); }
+code.hint-target { cursor: default; }
+code.hint-target:hover { background: var(--callout-bg); border-radius: 3px; }
+.note .note-marker { flex: none; margin-top: 4px; }
+.notes-below { padding: 8px 12px 10px 60px; border-top: 1px solid var(--border); background: var(--surface); }
+.notes-below .note { margin: 6px 0; display: flex; gap: 6px; align-items: flex-start; }
+.notes-below .callout, .notes-col .callout { padding: 6px 10px; }
+td.code.note-anchor { box-shadow: inset 3px 0 0 var(--callout-border); }
+@media print {
+  /* Paper is white whatever the screen theme; the dark tokens would print grey on white. */
+  [data-theme="dark"] {
+    --bg: #ffffff; --fg: #1f2328; --muted: #59636e; --border: #d0d7de; --surface: #f6f8fa; --link: #0969da;
+    --add-bg: #dafbe1; --add-num-bg: #aceebb; --del-bg: #ffebe9; --del-num-bg: #ffcecb; --hunk-bg: #ddf4ff; --hunk-fg: #0550ae;
+    --callout-bg: #fff8c5; --callout-border: #d4a72c; --code-bg: #f6f8fa; --add-fg: #1a7f37; --del-fg: #cf222e;
+    --marker-bg: #d4a72c; --marker-fg: #1f2328;
+  }
+  .sidebar { display: none; }
+  .layout { display: block; }
+  .file-body.has-margin { grid-template-columns: 1fr; }
+  .notes-col { display: none !important; }
+}
+
+/* Paged reports: prev/next links and the current chapter in the sidebar. */
+.pager { display: flex; justify-content: space-between; gap: 16px; margin: 24px 0; font-size: 14px; }
+.pager a { text-decoration: none; }
+.toc li.current > a { font-weight: 600; }
+.chapter-list { padding-left: 20px; }
+.chapter-list li { margin: 10px 0; }
+.chapter-list .intro { margin: 2px 0 0; font-size: 14px; color: var(--muted); }
+.report-header h1 a { color: inherit; text-decoration: none; }
+
+/* Collapsed blocks: exclusion list under the title, excluded files in Other changes, the full file list on chapter pages. */
+details.excluded { margin: 6px 0 0; font-size: 13px; color: var(--muted); }
+details.excluded summary, details.all-files summary { cursor: pointer; }
+details.excluded ul { margin: 6px 0 0; padding-left: 18px; }
+details.file.excluded > summary { list-style: none; display: flex; align-items: center; gap: 10px; }
+details.file.excluded > summary::-webkit-details-marker { display: none; }
+details.file.excluded > summary::before { content: "▸"; color: var(--muted); }
+details.file.excluded[open] > summary::before { content: "▾"; }
+details.all-files { margin-top: 12px; font-size: 13px; color: var(--muted); }
+
+/* Viewed: a manual tick per file. The block folds to its header; the sidebar and the
+   progress rail show how much of the change has been looked at. */
+.sidebar-top { display: flex; flex-wrap: wrap; gap: 6px; }
+.file-header .viewed { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); cursor: pointer; user-select: none; }
+.file-header .viewed input { accent-color: var(--add-fg); width: 14px; height: 14px; margin: 0; }
+.file.is-viewed > .file-header { color: var(--muted); }
+.file.is-viewed > .file-header .path::before { content: "✓ "; color: var(--add-fg); }
+.file.is-viewed > .file-body { display: none; }
+.file-index li.is-viewed a { color: var(--muted); }
+.file-index li.is-viewed a::before { content: "✓ "; color: var(--add-fg); }
+.viewed-progress { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 12px; color: var(--muted); }
+.viewed-progress .rail { flex: 1; height: 4px; border-radius: 2px; background: var(--border); overflow: hidden; }
+.viewed-progress .fill { height: 100%; width: 0; background: var(--add-fg); transition: width .2s ease; }
+.chapter-list .viewed-of { margin-left: 8px; font-size: 12px; color: var(--muted); }
+.chapter-list li.is-viewed > a { color: var(--muted); }
+.chapter-list li.is-viewed > a::before { content: "✓ "; color: var(--add-fg); }
+@media (prefers-reduced-motion: reduce) { .viewed-progress .fill { transition: none; } }
+
+/* Hint row: the notes for a hovered line, inserted under it so the code below moves down
+   rather than being covered. The gutter cell keeps the line-number columns aligned. */
+tr.hint-row td { padding: 4px 12px 8px 8px; background: var(--bg); white-space: normal; }
+tr.hint-row td.hint-gutter { background: var(--surface); padding: 0; }
+tr.hint-row .callout { box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+tr.hint-row .callout + .callout { margin-top: 6px; }
+tr.hint-row.pinned .callout { border-left-width: 4px; }
+.notes-col .note { transition: transform .12s ease; }
+@media (prefers-reduced-motion: reduce) { .notes-col .note { transition: none; } }
+
+/* Covers: what a test file pins and what it leaves untested, shown before its diff. */
+.covers { display: flex; gap: 10px; align-items: baseline; padding: 8px 12px; border-bottom: 1px solid var(--border); background: var(--callout-bg); font-size: 14px; }
+.covers p { margin: 0; }
+.covers-label { flex: none; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.file.is-viewed > .covers { display: none; }
+
+/* Chapter progress: "3/5" beside a sidebar entry, a tick once every file in the chapter is viewed. */
+.toc li .chapter-progress { margin-left: 6px; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.toc li.is-viewed > a { color: var(--muted); }
+.toc li.is-viewed > a::before { content: "✓ "; color: var(--add-fg); }
+.chapter .chapter-viewed { margin: -6px 0 12px; font-size: 13px; color: var(--muted); }
+.chapter.is-viewed .chapter-viewed { color: var(--add-fg); }
+.chapter.is-viewed .chapter-viewed::before { content: "✓ "; }
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar">
+  <div class="sidebar-top">
+    <button id="theme-toggle" type="button" title="Toggle light/dark">Theme</button>
+    <button id="notes-toggle" type="button" title="Notes beside the code, or inline between lines">Notes: margin</button>
+    <button id="diff-toggle" type="button" title="Unified diff, or old and new side by side; applies to every file">Diff: unified</button>
+  </div>
+  <ol class="toc">
+    <li><a href="index.html#overview">Overview</a></li>
+    <li><a href="index.html#key-terms">New terms</a></li>
+    <li><a href="index.html#how-to-test">How to test</a></li>
+    <li data-files="alerts/management/commands/poll_events.py|alerts/models.py|config/settings.py|alerts/tests.py"><a href="chapter-01.html">1. One poll run: ingest, the 24-hour window, the match loop and retries</a><span class="chapter-progress"></span></li>
+    <li class="current" data-files="alerts/sources.py|config/settings.py|alerts/tests.py"><a href="chapter-02.html">2. Where events come from: USGS, RSS and GDACS</a><span class="chapter-progress"></span></li>
+    <li data-files="alerts/matching.py|config/settings.py|pyproject.toml|alerts/tests.py"><a href="chapter-03.html">3. How Claude decides which alerts an event matches</a><span class="chapter-progress"></span></li>
+    <li data-files="alerts/channels.py|config/settings.py|alerts/tests.py"><a href="chapter-04.html">4. Delivering a match: the channel registry, email and Slack</a><span class="chapter-progress"></span></li>
+    <li data-files="config/urls.py|alerts/urls.py|alerts/views.py|alerts/forms.py|alerts/templates/alerts/alert_form.html|alerts/templates/alerts/alert_list.html|alerts/templates/alerts/alert_confirm_delete.html|alerts/templates/alerts/base.html|templates/registration/login.html|config/settings.py|alerts/tests.py"><a href="chapter-05.html">5. Users manage their own alerts</a><span class="chapter-progress"></span></li>
+    <li data-files="alerts/admin.py|alerts/tests.py"><a href="chapter-06.html">6. The admin view</a><span class="chapter-progress"></span></li>
+    <li><a href="other-changes.html">Other changes</a></li>
+  </ol>
+  <h3>Files on this page</h3>
+  <nav class="file-index"><ul><li><a href="#file-18-c" data-file="alerts/sources.py" title="alerts/sources.py"><bdi>alerts/sources.py</bdi></a> <span class="add">+86</span><span class="del">-0</span></li></ul></nav>
+  <div class="viewed-progress"><span class="viewed-count" data-total="23">0 of 23 viewed</span><div class="rail"><div class="fill"></div></div></div>
+  <details class="all-files"><summary>All files (37)</summary><nav class="file-index"><ul><li><a href="other-changes.html#file-1-c" data-file=".gitignore" title=".gitignore"><bdi>.gitignore</bdi></a> <span class="add">+12</span><span class="del">-0</span></li><li><a href="other-changes.html#file-2-c" data-file="CLAUDE.md" title="CLAUDE.md"><bdi>CLAUDE.md</bdi></a> <span class="add">+15</span><span class="del">-0</span></li><li><a href="other-changes.html#file-3-c" data-file="README.md" title="README.md"><bdi>README.md</bdi></a> <span class="add">+103</span><span class="del">-0</span></li><li><a href="other-changes.html#file-4-c" data-file="_bmad-output/implementation-artifacts/spec-world-event-alerts.md" title="_bmad-output/implementation-artifacts/spec-world-event-alerts.md"><bdi>_bmad-output/implementation-artifacts/spec-world-event-alerts.md</bdi></a> <span class="add">+445</span><span class="del">-0</span></li><li><a href="other-changes.html#file-5-c" data-file="alerts/__init__.py" title="alerts/__init__.py"><bdi>alerts/__init__.py</bdi></a> <span class="add">+0</span><span class="del">-0</span></li><li><a href="chapter-06.html#file-6-c" data-file="alerts/admin.py" title="alerts/admin.py"><bdi>alerts/admin.py</bdi></a> <span class="add">+49</span><span class="del">-0</span></li><li><a href="other-changes.html#file-7-c" data-file="alerts/apps.py" title="alerts/apps.py"><bdi>alerts/apps.py</bdi></a> <span class="add">+5</span><span class="del">-0</span></li><li><a href="chapter-04.html#file-8-c" data-file="alerts/channels.py" title="alerts/channels.py"><bdi>alerts/channels.py</bdi></a> <span class="add">+57</span><span class="del">-0</span></li><li><a href="chapter-05.html#file-9-c" data-file="alerts/forms.py" title="alerts/forms.py"><bdi>alerts/forms.py</bdi></a> <span class="add">+28</span><span class="del">-0</span></li><li><a href="other-changes.html#file-10-c" data-file="alerts/management/__init__.py" title="alerts/management/__init__.py"><bdi>alerts/management/__init__.py</bdi></a> <span class="add">+0</span><span class="del">-0</span></li><li><a href="other-changes.html#file-11-c" data-file="alerts/management/commands/__init__.py" title="alerts/management/commands/__init__.py"><bdi>alerts/management/commands/__init__.py</bdi></a> <span class="add">+0</span><span class="del">-0</span></li><li><a href="chapter-01.html#file-12-c" data-file="alerts/management/commands/poll_events.py" title="alerts/management/commands/poll_events.py"><bdi>alerts/management/commands/poll_events.py</bdi></a> <span class="add">+100</span><span class="del">-0</span></li><li><a href="chapter-03.html#file-13-c" data-file="alerts/matching.py" title="alerts/matching.py"><bdi>alerts/matching.py</bdi></a> <span class="add">+56</span><span class="del">-0</span></li><li><a href="other-changes.html#file-14-c" data-file="alerts/migrations/0001_initial.py" title="alerts/migrations/0001_initial.py"><bdi>alerts/migrations/0001_initial.py</bdi></a> <span class="add">+74</span><span class="del">-0</span></li><li><a href="other-changes.html#file-15-c" data-file="alerts/migrations/0002_notification_attempts.py" title="alerts/migrations/0002_notification_attempts.py"><bdi>alerts/migrations/0002_notification_attempts.py</bdi></a> <span class="add">+18</span><span class="del">-0</span></li><li><a href="other-changes.html#file-16-c" data-file="alerts/migrations/__init__.py" title="alerts/migrations/__init__.py"><bdi>alerts/migrations/__init__.py</bdi></a> <span class="add">+0</span><span class="del">-0</span></li><li><a href="chapter-01.html#file-17-c" data-file="alerts/models.py" title="alerts/models.py"><bdi>alerts/models.py</bdi></a> <span class="add">+74</span><span class="del">-0</span></li><li><a href="chapter-02.html#file-18-c" data-file="alerts/sources.py" title="alerts/sources.py"><bdi>alerts/sources.py</bdi></a> <span class="add">+86</span><span class="del">-0</span></li><li><a href="chapter-05.html#file-19-c" data-file="alerts/templates/alerts/alert_confirm_delete.html" title="alerts/templates/alerts/alert_confirm_delete.html"><bdi>alerts/templates/alerts/alert_confirm_delete.html</bdi></a> <span class="add">+10</span><span class="del">-0</span></li><li><a href="chapter-05.html#file-20-c" data-file="alerts/templates/alerts/alert_form.html" title="alerts/templates/alerts/alert_form.html"><bdi>alerts/templates/alerts/alert_form.html</bdi></a> <span class="add">+16</span><span class="del">-0</span></li><li><a href="chapter-05.html#file-21-c" data-file="alerts/templates/alerts/alert_list.html" title="alerts/templates/alerts/alert_list.html"><bdi>alerts/templates/alerts/alert_list.html</bdi></a> <span class="add">+23</span><span class="del">-0</span></li><li><a href="chapter-05.html#file-22-c" data-file="alerts/templates/alerts/base.html" title="alerts/templates/alerts/base.html"><bdi>alerts/templates/alerts/base.html</bdi></a> <span class="add">+20</span><span class="del">-0</span></li><li><a href="chapter-01.html#file-23-c" data-file="alerts/tests.py" title="alerts/tests.py"><bdi>alerts/tests.py</bdi></a> <span class="add">+661</span><span class="del">-0</span></li><li><a href="chapter-05.html#file-24-c" data-file="alerts/urls.py" title="alerts/urls.py"><bdi>alerts/urls.py</bdi></a> <span class="add">+10</span><span class="del">-0</span></li><li><a href="chapter-05.html#file-25-c" data-file="alerts/views.py" title="alerts/views.py"><bdi>alerts/views.py</bdi></a> <span class="add">+36</span><span class="del">-0</span></li><li><a href="other-changes.html#file-26-c" data-file="config/__init__.py" title="config/__init__.py"><bdi>config/__init__.py</bdi></a> <span class="add">+0</span><span class="del">-0</span></li><li><a href="other-changes.html#file-27-c" data-file="config/asgi.py" title="config/asgi.py"><bdi>config/asgi.py</bdi></a> <span class="add">+16</span><span class="del">-0</span></li><li><a href="chapter-01.html#file-28-c" data-file="config/settings.py" title="config/settings.py"><bdi>config/settings.py</bdi></a> <span class="add">+161</span><span class="del">-0</span></li><li><a href="chapter-05.html#file-29-c" data-file="config/urls.py" title="config/urls.py"><bdi>config/urls.py</bdi></a> <span class="add">+8</span><span class="del">-0</span></li><li><a href="other-changes.html#file-30-c" data-file="config/wsgi.py" title="config/wsgi.py"><bdi>config/wsgi.py</bdi></a> <span class="add">+16</span><span class="del">-0</span></li><li><a href="other-changes.html#file-31-c" data-file="docs/CODEBASE_MAP.md" title="docs/CODEBASE_MAP.md"><bdi>docs/CODEBASE_MAP.md</bdi></a> <span class="add">+265</span><span class="del">-0</span></li><li><a href="other-changes.html#file-32-c" data-file="docs/PROMPTS.md" title="docs/PROMPTS.md"><bdi>docs/PROMPTS.md</bdi></a> <span class="add">+179</span><span class="del">-0</span></li><li><a href="other-changes.html#file-33-c" data-file="docs/VALIDATION-LOG.md" title="docs/VALIDATION-LOG.md"><bdi>docs/VALIDATION-LOG.md</bdi></a> <span class="add">+303</span><span class="del">-0</span></li><li><a href="other-changes.html#file-34-c" data-file="manage.py" title="manage.py"><bdi>manage.py</bdi></a> <span class="add">+22</span><span class="del">-0</span></li><li><a href="chapter-03.html#file-35-c" data-file="pyproject.toml" title="pyproject.toml"><bdi>pyproject.toml</bdi></a> <span class="add">+9</span><span class="del">-0</span></li><li><a href="chapter-05.html#file-36-c" data-file="templates/registration/login.html" title="templates/registration/login.html"><bdi>templates/registration/login.html</bdi></a> <span class="add">+11</span><span class="del">-0</span></li><li><a href="other-changes.html#file-37-c" data-file="uv.lock" title="uv.lock"><bdi>uv.lock</bdi></a> <span class="add">+441</span><span class="del">-0</span></li></ul></nav></details>
+</nav>
+<main>
+<header class="report-header">
+  <h1><a href="index.html">World event alerts: the whole project</a></h1>
+  <p class="target">4b825dc642cb6eb9a060e54bf8d69288fbee4904..HEAD</p>
+  <p class="coverage">1415 of 1415 changed lines shown in chapters (100%). Reader pass: 2 rounds, 15 questions answered, 2 still open.</p>
+  
+</header>
+<nav class="pager"><a class="prev" href="chapter-01.html">← 1. One poll run: ingest, the 24-hour window, the match loop and retries</a><a class="next" href="chapter-03.html">3. How Claude decides which alerts an event matches →</a></nav>
+<section class="chapter" data-files="alerts/sources.py|config/settings.py|alerts/tests.py"><h2 id="chapter-2">2. Where events come from: USGS, RSS and GDACS</h2><p class="chapter-viewed"></p><div class="intro"><p>Chapter 1 calls each fetcher in <code>SOURCES</code>; this chapter is those fetchers. Each returns plain dicts of <code>Event</code> fields, all HTTP goes through <code>_get</code> (15 s timeout), and RSS-shaped feeds share one parser. Untrusted feed text is normalised here: dates made timezone-aware, HTML stripped, sizes capped.</p></div><section class="file" id="file-18-c" data-path="alerts/sources.py" data-hash="94322009">
+<header class="file-header"><span class="path">alerts/sources.py</span><span class="status added">added</span><label class="viewed"><input type="checkbox" class="viewed-toggle"> Viewed</label></header>
+<div class="file-body"><div class="diff-col"><table class="diff unified"><colgroup><col class="num"><col class="num"><col class="code"></colgroup><tr class="hunk-header"><td colspan="3">@@ -0,0 +1,86 @@</td></tr><tr class="line add" data-old="" data-new="1"><td class="num old"></td><td class="num new">1</td><td class="code"><code class="language-python">&quot;&quot;&quot;Free public event feeds. Each fetcher returns a list of dicts of Event fields (minus `source`).</code></td></tr><tr class="line add" data-old="" data-new="2"><td class="num old"></td><td class="num new">2</td><td class="code"><code class="language-python"></code></td></tr><tr class="line add" data-old="" data-new="3"><td class="num old"></td><td class="num new">3</td><td class="code"><code class="language-python">No market feed: market events are added by hand in admin.</code></td></tr><tr class="comment" data-anchor-side="new" data-anchor-line="3"><td colspan="3"><div class="callout"><p>There is no market feed: the free one (Stooq) was dead, and the owner chose manual market events in admin over a paid or unofficial API.</p></div></td></tr><tr class="line add" data-old="" data-new="4"><td class="num old"></td><td class="num new">4</td><td class="code"><code class="language-python">&quot;&quot;&quot;</code></td></tr><tr class="line add" data-old="" data-new="5"><td class="num old"></td><td class="num new">5</td><td class="code"><code class="language-python">import json</code></td></tr><tr class="line add" data-old="" data-new="6"><td class="num old"></td><td class="num new">6</td><td class="code"><code class="language-python">import logging</code></td></tr><tr class="line add" data-old="" data-new="7"><td class="num old"></td><td class="num new">7</td><td class="code"><code class="language-python">import urllib.request</code></td></tr><tr class="line add" data-old="" data-new="8"><td class="num old"></td><td class="num new">8</td><td class="code"><code class="language-python">import xml.etree.ElementTree as ET</code></td></tr><tr class="line add" data-old="" data-new="9"><td class="num old"></td><td class="num new">9</td><td class="code"><code class="language-python">from datetime import UTC, datetime</code></td></tr><tr class="line add" data-old="" data-new="10"><td class="num old"></td><td class="num new">10</td><td class="code"><code class="language-python">from email.utils import parsedate_to_datetime</code></td></tr><tr class="line add" data-old="" data-new="11"><td class="num old"></td><td class="num new">11</td><td class="code"><code class="language-python"></code></td></tr><tr class="line add" data-old="" data-new="12"><td class="num old"></td><td class="num new">12</td><td class="code"><code class="language-python">from django.conf import settings</code></td></tr><tr class="line add" data-old="" data-new="13"><td class="num old"></td><td class="num new">13</td><td class="code"><code class="language-python">from django.utils.html import strip_tags</code></td></tr><tr class="line add" data-old="" data-new="14"><td class="num old"></td><td class="num new">14</td><td class="code"><code class="language-python">from django.utils import timezone</code></td></tr><tr class="line add" data-old="" data-new="15"><td class="num old"></td><td class="num new">15</td><td class="code"><code class="language-python"></code></td></tr><tr class="line add" data-old="" data-new="16"><td class="num old"></td><td class="num new">16</td><td class="code"><code class="language-python">log = logging.getLogger(__name__)</code></td></tr><tr class="line add" data-old="" data-new="17"><td class="num old"></td><td class="num new">17</td><td class="code"><code class="language-python"></code></td></tr><tr class="line add" data-old="" data-new="18"><td class="num old"></td><td class="num new">18</td><td class="code"><code class="language-python">USGS_URL = &quot;https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.geojson&quot;</code></td></tr><tr class="line add" data-old="" data-new="19"><td class="num old"></td><td class="num new">19</td><td class="code"><code class="language-python">GDACS_URL = &quot;https://www.gdacs.org/xml/rss.xml&quot;</code></td></tr><tr class="line add" data-old="" data-new="20"><td class="num old"></td><td class="num new">20</td><td class="code"><code class="language-python"></code></td></tr><tr class="line add" data-old="" data-new="21"><td class="num old"></td><td class="num new">21</td><td class="code"><code class="language-python"></code></td></tr><tr class="line add" data-old="" data-new="22"><td class="num old"></td><td class="num new">22</td><td class="code"><code class="language-python">def _get(url):</code></td></tr><tr class="line add" data-old="" data-new="23"><td class="num old"></td><td class="num new">23</td><td class="code"><code class="language-python">    req = urllib.request.Request(url, headers={&quot;User-Agent&quot;: &quot;world-event-alerts/0.1&quot;})</code></td></tr><tr class="line add" data-old="" data-new="24"><td class="num old"></td><td class="num new">24</td><td class="code"><code class="language-python">    with urllib.request.urlopen(req, timeout=15) as resp:</code></td></tr><tr class="line add" data-old="" data-new="25"><td class="num old"></td><td class="num new">25</td><td class="code"><code class="language-python">        return resp.read()</code></td></tr><tr class="line add" data-old="" data-new="26"><td class="num old"></td><td class="num new">26</td><td class="code"><code class="language-python"></code></td></tr><tr class="line add" data-old="" data-new="27"><td class="num old"></td><td class="num new">27</td><td class="code"><code class="language-python"></code></td></tr><tr class="line add" data-old="" data-new="28"><td class="num old"></td><td class="num new">28</td><td class="code"><code class="language-python">def _rss_items(url, category):</code></td></tr><tr class="line add" data-old="" data-new="29"><td class="num old"></td><td class="num new">29</td><td class="code"><code class="language-python">    events = []</code></td></tr><tr class="line add" data-old="" data-new="30"><td class="num old"></td><td class="num new">30</td><td class="code"><code class="language-python">    items = list(ET.fromstring(_get(url)).iter(&quot;item&quot;))</code></td></tr><tr class="comment" data-anchor-side="new" data-anchor-line="30"><td colspan="3"><div class="callout"><p>Only RSS 2.0 <code>&lt;item&gt;</code> elements are read. An Atom or RDF feed yields nothing, so the warning below makes that visible instead of silently ingesting zero events.</p></div></td></tr><tr class="line add" data-old="" data-new="31"><td class="num old"></td><td class="num new">31</td><td class="code"><code class="language-python">    if not items:</code></td></tr><tr class="line add" data-old="" data-new="32"><td class="num old"></td><td class="num new">32</td><td class="code"><code class="language-python">        log.warning(&quot;No RSS &lt;item&gt; elements in %s; Atom and RDF feeds are not supported&quot;, url)</code></td></tr><tr class="line add" data-old="" data-new="33"><td class="num old"></td><td class="num new">33</td><td class="code"><code class="language-python">    for item in items:</code></td></tr><tr class="line add" data-old="" data-new="34"><td class="num old"></td><td class="num new">34</td><td class="code"><code class="language-python">        link = (item.findtext(&quot;link&quot;) or &quot;&quot;).strip()</code></td></tr><tr class="line add" data-old="" data-new="35"><td class="num old"></td><td class="num new">35</td><td class="code"><code class="language-python">        ext_id = (item.findtext(&quot;guid&quot;) or &quot;&quot;).strip() or link</code></td></tr><tr class="comment" data-anchor-side="new" data-anchor-line="35"><td colspan="3"><div class="callout"><p>Dedupe key: guid, falling back to the link. Items with neither are skipped because they cannot be deduplicated.</p></div></td></tr><tr class="line add" data-old="" data-new="36"><td class="num old"></td><td class="num new">36</td><td class="code"><code class="language-python">        if not ext_id:</code></td></tr><tr class="line add" data-old="" data-new="37"><td class="num old"></td><td class="num new">37</td><td class="code"><code class="language-python">            continue</code></td></tr><tr class="line add" data-old="" data-new="38"><td class="num old"></td><td class="num new">38</td><td class="code"><code class="language-python">        pub = item.findtext(&quot;pubDate&quot;)</code></td></tr><tr class="line add" data-old="" data-new="39"><td class="num old"></td><td class="num new">39</td><td class="code"><code class="language-python">        try:</code></td></tr><tr class="line add" data-old="" data-new="40"><td class="num old"></td><td class="num new">40</td><td class="code"><code class="language-python">            occurred = parsedate_to_datetime(pub) if pub else timezone.now()</code></td></tr><tr class="comment" data-anchor-side="new" data-anchor-line="40"><td colspan="3"><div class="callout"><p>A missing or unparseable date becomes &quot;now&quot;. Such an item looks fresh only on first ingest; afterwards <code>get_or_create</code> finds it.</p></div></td></tr><tr class="line add" data-old="" data-new="41"><td class="num old"></td><td class="num new">41</td><td class="code"><code class="language-python">        except (TypeError, ValueError):</code></td></tr><tr class="line add" data-old="" data-new="42"><td class="num old"></td><td class="num new">42</td><td class="code"><code class="language-python">            occurred = timezone.now()</code></td></tr><tr class="line add" data-old="" data-new="43"><td class="num old"></td><td class="num new">43</td><td class="code"><code class="language-python">        if occurred.tzinfo is None:  # &quot;-0000&quot; pubDates parse as naive</code></td></tr><tr class="comment" data-anchor-side="new" data-anchor-line="43"><td colspan="3"><div class="callout"><p>RFC 2822 dates with <code>-0000</code> parse as naive datetimes; with <code>USE_TZ = True</code> they must be made aware or the 24 h comparison would raise.</p></div></td></tr><tr class="line add" data-old="" data-new="44"><td class="num old"></td><td class="num new">44</td><td class="code"><code class="language-python">            occurred = occurred.replace(tzinfo=UTC)</code></td></tr><tr class="line add" data-old="" data-new="45"><td class="num old"></td><td class="num new">45</td><td class="code"><code class="language-python">        events.append({</code></td></tr><tr class="line add" data-old="" data-new="46"><td class="num old"></td><td class="num new">46</td><td class="code"><code class="language-python">            &quot;external_id&quot;: ext_id[:500],</code></td></tr><tr class="line add" data-old="" data-new="47"><td class="num old"></td><td class="num new">47</td><td class="code"><code class="language-python">            &quot;category&quot;: category,</code></td></tr><tr class="line add" data-old="" data-new="48"><td class="num old"></td><td class="num new">48</td><td class="code"><code class="language-python">            &quot;title&quot;: (item.findtext(&quot;title&quot;) or ext_id).strip()[:500],</code></td></tr><tr class="line add" data-old="" data-new="49"><td class="num old"></td><td class="num new">49</td><td class="code"><code class="language-python">            &quot;summary&quot;: strip_tags(item.findtext(&quot;description&quot;) or &quot;&quot;).strip()[:2000],</code></td></tr><tr class="comment" data-anchor-side="new" data-anchor-line="49"><td colspan="3"><div class="callout"><p>Many feeds put HTML in <code>&lt;description&gt;</code>. Stripping keeps tags out of the prompt, the plain-text email and Slack; the 2000-char cap keeps one huge item from making every Claude call fail.</p></div></td></tr><tr class="line add" data-old="" data-new="50"><td class="num old"></td><td class="num new">50</td><td class="code"><code class="language-python">            &quot;url&quot;: link[:1000],</code></td></tr><tr class="line add" data-old="" data-new="51"><td class="num old"></td><td class="num new">51</td><td class="code"><code class="language-python">            &quot;occurred_at&quot;: occurred,</code></td></tr><tr class="line add" data-old="" data-new="52"><td class="num old"></td><td class="num new">52</td><td class="code"><code class="language-python">        })</code></td></tr><tr class="line add" data-old="" data-new="53"><td class="num old"></td><td class="num new">53</td><td class="code"><code class="language-python">    return events</code></td></tr><tr class="line add" data-old="" data-new="54"><td class="num old"></td><td class="num new">54</td><td class="code"><code class="language-python"></code></td></tr><tr class="line add" data-old="" data-new="55"><td class="num old"></td><td class="num new">55</td><td class="code"><code class="language-python"></code></td></tr><tr class="line add" data-old="" data-new="56"><td class="num old"></td><td class="num new">56</td><td class="code"><code class="language-python">def fetch_usgs():</code></td></tr><tr class="line add" data-old="" data-new="57"><td class="num old"></td><td class="num new">57</td><td class="code"><code class="language-python">    events = []</code></td></tr><tr class="line add" data-old="" data-new="58"><td class="num old"></td><td class="num new">58</td><td class="code"><code class="language-python">    for f in json.loads(_get(USGS_URL))[&quot;features&quot;]:</code></td></tr><tr class="line add" data-old="" data-new="59"><td class="num old"></td><td class="num new">59</td><td class="code"><code class="language-python">        p = f[&quot;properties&quot;]</code></td></tr><tr class="line add" data-old="" data-new="60"><td class="num old"></td><td class="num new">60</td><td class="code"><code class="language-python">        events.append({</code></td></tr><tr class="line add" data-old="" data-new="61"><td class="num old"></td><td class="num new">61</td><td class="code"><code class="language-python">            &quot;external_id&quot;: f[&quot;id&quot;],</code></td></tr><tr class="line add" data-old="" data-new="62"><td class="num old"></td><td class="num new">62</td><td class="code"><code class="language-python">            &quot;category&quot;: &quot;disaster&quot;,</code></td></tr><tr class="line add" data-old="" data-new="63"><td class="num old"></td><td class="num new">63</td><td class="code"><code class="language-python">            &quot;title&quot;: (p.get(&quot;title&quot;) or f&quot;M{p.get(&#39;mag&#39;)} earthquake - {p.get(&#39;place&#39;)}&quot;)[:500],</code></td></tr><tr class="line add" data-old="" data-new="64"><td class="num old"></td><td class="num new">64</td><td class="code"><code class="language-python">            &quot;summary&quot;: f&quot;Magnitude {p.get(&#39;mag&#39;)} earthquake, {p.get(&#39;place&#39;)}. Tsunami flag: {p.get(&#39;tsunami&#39;)}.&quot;,</code></td></tr><tr class="line add" data-old="" data-new="65"><td class="num old"></td><td class="num new">65</td><td class="code"><code class="language-python">            &quot;url&quot;: p.get(&quot;url&quot;) or &quot;&quot;,</code></td></tr><tr class="line add" data-old="" data-new="66"><td class="num old"></td><td class="num new">66</td><td class="code"><code class="language-python">            &quot;occurred_at&quot;: datetime.fromtimestamp(p[&quot;time&quot;] / 1000, tz=UTC),</code></td></tr><tr class="comment" data-anchor-side="new" data-anchor-line="66"><td colspan="3"><div class="callout"><p>USGS times are milliseconds since the epoch.</p></div></td></tr><tr class="line add" data-old="" data-new="67"><td class="num old"></td><td class="num new">67</td><td class="code"><code class="language-python">        })</code></td></tr><tr class="line add" data-old="" data-new="68"><td class="num old"></td><td class="num new">68</td><td class="code"><code class="language-python">    return events</code></td></tr><tr class="line add" data-old="" data-new="69"><td class="num old"></td><td class="num new">69</td><td class="code"><code class="language-python"></code></td></tr><tr class="line add" data-old="" data-new="70"><td class="num old"></td><td class="num new">70</td><td class="code"><code class="language-python"></code></td></tr><tr class="line add" data-old="" data-new="71"><td class="num old"></td><td class="num new">71</td><td class="code"><code class="language-python">def fetch_rss():</code></td></tr><tr class="line add" data-old="" data-new="72"><td class="num old"></td><td class="num new">72</td><td class="code"><code class="language-python">    events = []</code></td></tr><tr class="line add" data-old="" data-new="73"><td class="num old"></td><td class="num new">73</td><td class="code"><code class="language-python">    for feed in settings.EVENT_RSS_FEEDS:</code></td></tr><tr class="line add" data-old="" data-new="74"><td class="num old"></td><td class="num new">74</td><td class="code"><code class="language-python">        try:</code></td></tr><tr class="line add" data-old="" data-new="75"><td class="num old"></td><td class="num new">75</td><td class="code"><code class="language-python">            events += _rss_items(feed, &quot;news&quot;)</code></td></tr><tr class="comment" data-anchor-side="new" data-anchor-line="75"><td colspan="3"><div class="callout"><p>Per-feed isolation inside the RSS source: one dead feed doesn&#39;t hide the others.</p></div></td></tr><tr class="line add" data-old="" data-new="76"><td class="num old"></td><td class="num new">76</td><td class="code"><code class="language-python">        except Exception:</code></td></tr><tr class="line add" data-old="" data-new="77"><td class="num old"></td><td class="num new">77</td><td class="code"><code class="language-python">            log.exception(&quot;RSS feed %s failed&quot;, feed)</code></td></tr><tr class="line add" data-old="" data-new="78"><td class="num old"></td><td class="num new">78</td><td class="code"><code class="language-python">    return events</code></td></tr><tr class="line add" data-old="" data-new="79"><td class="num old"></td><td class="num new">79</td><td class="code"><code class="language-python"></code></td></tr><tr class="line add" data-old="" data-new="80"><td class="num old"></td><td class="num new">80</td><td class="code"><code class="language-python"></code></td></tr><tr class="line add" data-old="" data-new="81"><td class="num old"></td><td class="num new">81</td><td class="code"><code class="language-python">def fetch_gdacs():</code></td></tr><tr class="line add" data-old="" data-new="82"><td class="num old"></td><td class="num new">82</td><td class="code"><code class="language-python">    # USGS already covers earthquakes; GDACS adds floods, cyclones, volcanoes, droughts, wildfires.</code></td></tr><tr class="line add" data-old="" data-new="83"><td class="num old"></td><td class="num new">83</td><td class="code"><code class="language-python">    return [e for e in _rss_items(GDACS_URL, &quot;disaster&quot;) if not e[&quot;external_id&quot;].startswith(&quot;EQ&quot;)]</code></td></tr><tr class="comment" data-anchor-side="new" data-anchor-line="83"><td colspan="3"><div class="callout"><p>GDACS also reports earthquakes (guids starting <code>EQ</code>); USGS already covers them, so they are dropped to avoid double alerts.</p></div></td></tr><tr class="line add" data-old="" data-new="84"><td class="num old"></td><td class="num new">84</td><td class="code"><code class="language-python"></code></td></tr><tr class="line add" data-old="" data-new="85"><td class="num old"></td><td class="num new">85</td><td class="code"><code class="language-python"></code></td></tr><tr class="line add" data-old="" data-new="86"><td class="num old"></td><td class="num new">86</td><td class="code"><code class="language-python">SOURCES = {&quot;usgs&quot;: fetch_usgs, &quot;rss&quot;: fetch_rss, &quot;gdacs&quot;: fetch_gdacs}</code></td></tr><tr class="comment" data-anchor-side="new" data-anchor-line="86"><td colspan="3"><div class="callout"><p>The keys here become <code>Event.source</code>, and the poller&#39;s 24 h window applies only to these keys.</p></div></td></tr></table></div><aside class="notes-col"></aside></div>
+</section><section class="file" data-path="config/settings.py" data-hash="b688bec6">
+<header class="file-header"><span class="path">config/settings.py</span><span class="status added">added</span><label class="viewed"><input type="checkbox" class="viewed-toggle"> Viewed</label></header>
+<div class="file-body"><div class="diff-col"><table class="diff unified"><colgroup><col class="num"><col class="num"><col class="code"></colgroup><tr class="hunk-header"><td colspan="3">@@ -0,0 +159,2 @@</td></tr><tr class="line add" data-old="" data-new="159"><td class="num old"></td><td class="num new">159</td><td class="code"><code class="language-python"># Event feeds and matching</code></td></tr><tr class="line add" data-old="" data-new="160"><td class="num old"></td><td class="num new">160</td><td class="code"><code class="language-python">EVENT_RSS_FEEDS = [&#39;https://feeds.bbci.co.uk/news/world/rss.xml&#39;]</code></td></tr><tr class="comment" data-anchor-side="new" data-anchor-line="160"><td colspan="3"><div class="callout"><p>Add more RSS feeds here; they all share the <code>rss</code> source key and the per-feed isolation.</p></div></td></tr></table></div><aside class="notes-col"></aside></div>
+</section><section class="file" data-path="alerts/tests.py" data-hash="7280e805">
+<header class="file-header"><span class="path">alerts/tests.py</span><span class="status added">added</span><label class="viewed"><input type="checkbox" class="viewed-toggle"> Viewed</label></header><div class="covers"><span class="covers-label">Covers</span><p>End to end: a USGS body through the real fetcher and <code>poll_events</code> creates an <code>Event</code> with the right fields (catches a key typo that would silently kill the source).</p></div>
+<div class="file-body"><div class="diff-col"><table class="diff unified"><colgroup><col class="num"><col class="num"><col class="code"></colgroup><tr class="hunk-header"><td colspan="3">@@ -0,0 +307,12 @@</td></tr><tr class="line add" data-old="" data-new="307"><td class="num old"></td><td class="num new">307</td><td class="code"><code class="language-python">    def test_real_usgs_feed_is_ingested(self):</code></td></tr><tr class="line add" data-old="" data-new="308"><td class="num old"></td><td class="num new">308</td><td class="code"><code class="language-python">        body = json.dumps({&quot;features&quot;: [{&quot;id&quot;: &quot;us9&quot;, &quot;properties&quot;: {</code></td></tr><tr class="line add" data-old="" data-new="309"><td class="num old"></td><td class="num new">309</td><td class="code"><code class="language-python">            &quot;mag&quot;: 6.0, &quot;place&quot;: &quot;Chile&quot;, &quot;time&quot;: int(timezone.now().timestamp() * 1000) - 3600_000,</code></td></tr><tr class="line add" data-old="" data-new="310"><td class="num old"></td><td class="num new">310</td><td class="code"><code class="language-python">            &quot;url&quot;: &quot;https://u&quot;, &quot;title&quot;: &quot;M 6.0 - Chile&quot;, &quot;tsunami&quot;: 0,</code></td></tr><tr class="line add" data-old="" data-new="311"><td class="num old"></td><td class="num new">311</td><td class="code"><code class="language-python">        }}]}).encode()</code></td></tr><tr class="line add" data-old="" data-new="312"><td class="num old"></td><td class="num new">312</td><td class="code"><code class="language-python">        p, _ = claude_returning()</code></td></tr><tr class="line add" data-old="" data-new="313"><td class="num old"></td><td class="num new">313</td><td class="code"><code class="language-python">        with p, patch(&quot;alerts.sources._get&quot;, side_effect=lambda url: body if url == sources.USGS_URL else b&quot;&lt;rss/&gt;&quot;):</code></td></tr><tr class="comment" data-anchor-side="new" data-anchor-line="313"><td colspan="3"><div class="callout"><p><code>side_effect</code> returns the USGS body for its URL and an empty RSS document for every other feed, so the BBC and GDACS fetchers run without network.</p></div></td></tr><tr class="line add" data-old="" data-new="314"><td class="num old"></td><td class="num new">314</td><td class="code"><code class="language-python">            call_command(&quot;poll_events&quot;)</code></td></tr><tr class="line add" data-old="" data-new="315"><td class="num old"></td><td class="num new">315</td><td class="code"><code class="language-python">        event = Event.objects.get(source=&quot;usgs&quot;)</code></td></tr><tr class="line add" data-old="" data-new="316"><td class="num old"></td><td class="num new">316</td><td class="code"><code class="language-python">        self.assertEqual((event.external_id, event.title, event.url), (&quot;us9&quot;, &quot;M 6.0 - Chile&quot;, &quot;https://u&quot;))</code></td></tr><tr class="line add" data-old="" data-new="317"><td class="num old"></td><td class="num new">317</td><td class="code"><code class="language-python">        self.assertIn(&quot;Magnitude 6.0&quot;, event.summary)</code></td></tr><tr class="line add" data-old="" data-new="318"><td class="num old"></td><td class="num new">318</td><td class="code"><code class="language-python"></code></td></tr></table></div><aside class="notes-col"></aside></div>
+</section><section class="file" data-path="alerts/tests.py" data-hash="7280e805">
+<header class="file-header"><span class="path">alerts/tests.py</span><span class="status added">added</span><label class="viewed"><input type="checkbox" class="viewed-toggle"> Viewed</label></header><div class="covers"><span class="covers-label">Covers</span><p>Parsing of USGS JSON, RSS (timezone handling, guid fallback, bad dates, skip items without id), HTML stripping and the 2000-char cap, and the GDACS earthquake drop. Leaves untested: real feed bodies and Atom feeds.</p></div>
+<div class="file-body"><div class="diff-col"><table class="diff unified"><colgroup><col class="num"><col class="num"><col class="code"></colgroup><tr class="hunk-header"><td colspan="3">@@ -0,0 +387,59 @@</td></tr><tr class="line add" data-old="" data-new="387"><td class="num old"></td><td class="num new">387</td><td class="code"><code class="language-python">class SourceParsingTests(TestCase):</code></td></tr><tr class="line add" data-old="" data-new="388"><td class="num old"></td><td class="num new">388</td><td class="code"><code class="language-python">    def test_usgs(self):</code></td></tr><tr class="line add" data-old="" data-new="389"><td class="num old"></td><td class="num new">389</td><td class="code"><code class="language-python">        body = json.dumps({&quot;features&quot;: [{&quot;id&quot;: &quot;us1&quot;, &quot;properties&quot;: {</code></td></tr><tr class="line add" data-old="" data-new="390"><td class="num old"></td><td class="num new">390</td><td class="code"><code class="language-python">            &quot;mag&quot;: 5.2, &quot;place&quot;: &quot;Chile&quot;, &quot;time&quot;: 1763542800000, &quot;url&quot;: &quot;https://u&quot;, &quot;title&quot;: &quot;M 5.2 - Chile&quot;, &quot;tsunami&quot;: 0,</code></td></tr><tr class="line add" data-old="" data-new="391"><td class="num old"></td><td class="num new">391</td><td class="code"><code class="language-python">        }}]}).encode()</code></td></tr><tr class="line add" data-old="" data-new="392"><td class="num old"></td><td class="num new">392</td><td class="code"><code class="language-python">        with patch(&quot;alerts.sources._get&quot;, return_value=body):</code></td></tr><tr class="line add" data-old="" data-new="393"><td class="num old"></td><td class="num new">393</td><td class="code"><code class="language-python">            [e] = sources.fetch_usgs()</code></td></tr><tr class="line add" data-old="" data-new="394"><td class="num old"></td><td class="num new">394</td><td class="code"><code class="language-python">        self.assertEqual((e[&quot;external_id&quot;], e[&quot;category&quot;], e[&quot;title&quot;]), (&quot;us1&quot;, &quot;disaster&quot;, &quot;M 5.2 - Chile&quot;))</code></td></tr><tr class="line add" data-old="" data-new="395"><td class="num old"></td><td class="num new">395</td><td class="code"><code class="language-python">        self.assertEqual(e[&quot;occurred_at&quot;], datetime(2025, 11, 19, 9, 0, tzinfo=UTC))</code></td></tr><tr class="line add" data-old="" data-new="396"><td class="num old"></td><td class="num new">396</td><td class="code"><code class="language-python">        self.assertEqual((e[&quot;summary&quot;], e[&quot;url&quot;]), (&quot;Magnitude 5.2 earthquake, Chile. Tsunami flag: 0.&quot;, &quot;https://u&quot;))</code></td></tr><tr class="line add" data-old="" data-new="397"><td class="num old"></td><td class="num new">397</td><td class="code"><code class="language-python"></code></td></tr><tr class="line add" data-old="" data-new="398"><td class="num old"></td><td class="num new">398</td><td class="code"><code class="language-python">    @override_settings(EVENT_RSS_FEEDS=[&quot;https://bad&quot;, &quot;https://feed&quot;])</code></td></tr><tr class="line add" data-old="" data-new="399"><td class="num old"></td><td class="num new">399</td><td class="code"><code class="language-python">    def test_rss(self):</code></td></tr><tr class="line add" data-old="" data-new="400"><td class="num old"></td><td class="num new">400</td><td class="code"><code class="language-python">        body = b&quot;&quot;&quot;&lt;rss&gt;&lt;channel&gt;</code></td></tr><tr class="line add" data-old="" data-new="401"><td class="num old"></td><td class="num new">401</td><td class="code"><code class="language-python">          &lt;item&gt;&lt;title&gt;A&lt;/title&gt;&lt;link&gt;https://a&lt;/link&gt;&lt;guid&gt;g1&lt;/guid&gt;&lt;pubDate&gt;Thu, 19 Nov 2026 08:00:00 GMT&lt;/pubDate&gt;&lt;/item&gt;</code></td></tr><tr class="line add" data-old="" data-new="402"><td class="num old"></td><td class="num new">402</td><td class="code"><code class="language-python">          &lt;item&gt;&lt;title&gt;B&lt;/title&gt;&lt;link&gt;https://b&lt;/link&gt;&lt;/item&gt;</code></td></tr><tr class="line add" data-old="" data-new="403"><td class="num old"></td><td class="num new">403</td><td class="code"><code class="language-python">          &lt;item&gt;&lt;title&gt;C&lt;/title&gt;&lt;link&gt;https://c&lt;/link&gt;&lt;guid&gt;  &lt;/guid&gt;&lt;pubDate&gt;Thu, 19 Nov 2026 08:00:00 -0000&lt;/pubDate&gt;&lt;/item&gt;</code></td></tr><tr class="line add" data-old="" data-new="404"><td class="num old"></td><td class="num new">404</td><td class="code"><code class="language-python">          &lt;item&gt;&lt;title&gt;D&lt;/title&gt;&lt;guid&gt;g4&lt;/guid&gt;&lt;pubDate&gt;not a date&lt;/pubDate&gt;&lt;/item&gt;</code></td></tr><tr class="line add" data-old="" data-new="405"><td class="num old"></td><td class="num new">405</td><td class="code"><code class="language-python">          &lt;item&gt;&lt;title&gt;E has no guid or link&lt;/title&gt;&lt;/item&gt;</code></td></tr><tr class="line add" data-old="" data-new="406"><td class="num old"></td><td class="num new">406</td><td class="code"><code class="language-python">        &lt;/channel&gt;&lt;/rss&gt;&quot;&quot;&quot;</code></td></tr><tr class="line add" data-old="" data-new="407"><td class="num old"></td><td class="num new">407</td><td class="code"><code class="language-python"></code></td></tr><tr class="line add" data-old="" data-new="408"><td class="num old"></td><td class="num new">408</td><td class="code"><code class="language-python">        def get(url):</code></td></tr><tr class="line add" data-old="" data-new="409"><td class="num old"></td><td class="num new">409</td><td class="code"><code class="language-python">            if url == &quot;https://bad&quot;:</code></td></tr><tr class="line add" data-old="" data-new="410"><td class="num old"></td><td class="num new">410</td><td class="code"><code class="language-python">                raise urllib.error.URLError(&quot;down&quot;)</code></td></tr><tr class="line add" data-old="" data-new="411"><td class="num old"></td><td class="num new">411</td><td class="code"><code class="language-python">            return body</code></td></tr><tr class="line add" data-old="" data-new="412"><td class="num old"></td><td class="num new">412</td><td class="code"><code class="language-python"></code></td></tr><tr class="line add" data-old="" data-new="413"><td class="num old"></td><td class="num new">413</td><td class="code"><code class="language-python">        with patch(&quot;alerts.sources._get&quot;, side_effect=get):</code></td></tr><tr class="line add" data-old="" data-new="414"><td class="num old"></td><td class="num new">414</td><td class="code"><code class="language-python">            events = sources.fetch_rss()</code></td></tr><tr class="line add" data-old="" data-new="415"><td class="num old"></td><td class="num new">415</td><td class="code"><code class="language-python">        self.assertEqual([e[&quot;external_id&quot;] for e in events], [&quot;g1&quot;, &quot;https://b&quot;, &quot;https://c&quot;, &quot;g4&quot;])</code></td></tr><tr class="line add" data-old="" data-new="416"><td class="num old"></td><td class="num new">416</td><td class="code"><code class="language-python">        self.assertEqual(events[0][&quot;category&quot;], &quot;news&quot;)</code></td></tr><tr class="line add" data-old="" data-new="417"><td class="num old"></td><td class="num new">417</td><td class="code"><code class="language-python">        self.assertEqual((events[0][&quot;summary&quot;], events[0][&quot;url&quot;]), (&quot;&quot;, &quot;https://a&quot;))</code></td></tr><tr class="line add" data-old="" data-new="418"><td class="num old"></td><td class="num new">418</td><td class="code"><code class="language-python"></code></td></tr><tr class="line add" data-old="" data-new="419"><td class="num old"></td><td class="num new">419</td><td class="code"><code class="language-python">        self.assertEqual(events[0][&quot;occurred_at&quot;], datetime(2026, 11, 19, 8, 0, tzinfo=UTC))</code></td></tr><tr class="line add" data-old="" data-new="420"><td class="num old"></td><td class="num new">420</td><td class="code"><code class="language-python">        self.assertEqual(events[2][&quot;occurred_at&quot;], datetime(2026, 11, 19, 8, 0, tzinfo=UTC))</code></td></tr><tr class="line add" data-old="" data-new="421"><td class="num old"></td><td class="num new">421</td><td class="code"><code class="language-python">        self.assertIsNotNone(events[2][&quot;occurred_at&quot;].tzinfo)</code></td></tr><tr class="line add" data-old="" data-new="422"><td class="num old"></td><td class="num new">422</td><td class="code"><code class="language-python">        self.assertIsNotNone(events[3][&quot;occurred_at&quot;].tzinfo)  # unparseable pubDate falls back to now</code></td></tr><tr class="line add" data-old="" data-new="423"><td class="num old"></td><td class="num new">423</td><td class="code"><code class="language-python"></code></td></tr><tr class="line add" data-old="" data-new="424"><td class="num old"></td><td class="num new">424</td><td class="code"><code class="language-python">    def test_rss_summary_is_plain_text_and_capped(self):</code></td></tr><tr class="line add" data-old="" data-new="425"><td class="num old"></td><td class="num new">425</td><td class="code"><code class="language-python">        body = (&quot;&lt;rss&gt;&lt;channel&gt;&lt;item&gt;&lt;guid&gt;g&lt;/guid&gt;&lt;description&gt;&amp;lt;p&amp;gt;Big &amp;lt;b&amp;gt;flood&amp;lt;/b&amp;gt;&amp;lt;/p&amp;gt;&quot;</code></td></tr><tr class="line add" data-old="" data-new="426"><td class="num old"></td><td class="num new">426</td><td class="code"><code class="language-python">                + &quot;x&quot; * 3000 + &quot;&lt;/description&gt;&lt;/item&gt;&lt;/channel&gt;&lt;/rss&gt;&quot;).encode()</code></td></tr><tr class="line add" data-old="" data-new="427"><td class="num old"></td><td class="num new">427</td><td class="code"><code class="language-python">        with patch(&quot;alerts.sources._get&quot;, return_value=body):</code></td></tr><tr class="line add" data-old="" data-new="428"><td class="num old"></td><td class="num new">428</td><td class="code"><code class="language-python">            [e] = sources._rss_items(&quot;https://feed&quot;, &quot;news&quot;)</code></td></tr><tr class="line add" data-old="" data-new="429"><td class="num old"></td><td class="num new">429</td><td class="code"><code class="language-python">        self.assertTrue(e[&quot;summary&quot;].startswith(&quot;Big flood&quot;))</code></td></tr><tr class="line add" data-old="" data-new="430"><td class="num old"></td><td class="num new">430</td><td class="code"><code class="language-python">        self.assertEqual(len(e[&quot;summary&quot;]), 2000)</code></td></tr><tr class="line add" data-old="" data-new="431"><td class="num old"></td><td class="num new">431</td><td class="code"><code class="language-python"></code></td></tr><tr class="line add" data-old="" data-new="432"><td class="num old"></td><td class="num new">432</td><td class="code"><code class="language-python">    def test_gdacs_skips_earthquakes(self):</code></td></tr><tr class="line add" data-old="" data-new="433"><td class="num old"></td><td class="num new">433</td><td class="code"><code class="language-python">        body = &quot;&quot;&quot;\ufeff&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;&lt;rss version=&quot;2.0&quot;&gt;&lt;channel&gt;</code></td></tr><tr class="comment" data-anchor-side="new" data-anchor-line="433"><td colspan="3"><div class="callout"><p>The live GDACS feed starts with a UTF-8 byte order mark; the fixture keeps it so the test proves <code>ET.fromstring</code> on the raw bytes still parses.</p></div></td></tr><tr class="line add" data-old="" data-new="434"><td class="num old"></td><td class="num new">434</td><td class="code"><code class="language-python">          &lt;item&gt;&lt;title&gt;Green earthquake in Peru&lt;/title&gt;&lt;link&gt;https://g/eq&lt;/link&gt;&lt;guid&gt;EQ1578046&lt;/guid&gt;</code></td></tr><tr class="line add" data-old="" data-new="435"><td class="num old"></td><td class="num new">435</td><td class="code"><code class="language-python">            &lt;pubDate&gt;Wed, 19 Nov 2026 06:00:00 GMT&lt;/pubDate&gt;&lt;/item&gt;</code></td></tr><tr class="line add" data-old="" data-new="436"><td class="num old"></td><td class="num new">436</td><td class="code"><code class="language-python">          &lt;item&gt;&lt;title&gt;Red flood alert in Bangladesh&lt;/title&gt;&lt;description&gt;Flood&lt;/description&gt;&lt;link&gt;https://g/fl&lt;/link&gt;</code></td></tr><tr class="line add" data-old="" data-new="437"><td class="num old"></td><td class="num new">437</td><td class="code"><code class="language-python">            &lt;guid&gt;FL1103456&lt;/guid&gt;&lt;pubDate&gt;Wed, 19 Nov 2026 07:00:00 GMT&lt;/pubDate&gt;&lt;/item&gt;</code></td></tr><tr class="line add" data-old="" data-new="438"><td class="num old"></td><td class="num new">438</td><td class="code"><code class="language-python">        &lt;/channel&gt;&lt;/rss&gt;&quot;&quot;&quot;.encode()</code></td></tr><tr class="line add" data-old="" data-new="439"><td class="num old"></td><td class="num new">439</td><td class="code"><code class="language-python">        with patch(&quot;alerts.sources._get&quot;, return_value=body):</code></td></tr><tr class="line add" data-old="" data-new="440"><td class="num old"></td><td class="num new">440</td><td class="code"><code class="language-python">            [e] = sources.fetch_gdacs()</code></td></tr><tr class="line add" data-old="" data-new="441"><td class="num old"></td><td class="num new">441</td><td class="code"><code class="language-python">        self.assertEqual((e[&quot;external_id&quot;], e[&quot;category&quot;], e[&quot;title&quot;]), (&quot;FL1103456&quot;, &quot;disaster&quot;, &quot;Red flood alert in Bangladesh&quot;))</code></td></tr><tr class="line add" data-old="" data-new="442"><td class="num old"></td><td class="num new">442</td><td class="code"><code class="language-python">        self.assertEqual(e[&quot;occurred_at&quot;], datetime(2026, 11, 19, 7, 0, tzinfo=UTC))</code></td></tr><tr class="line add" data-old="" data-new="443"><td class="num old"></td><td class="num new">443</td><td class="code"><code class="language-python">        self.assertEqual((e[&quot;summary&quot;], e[&quot;url&quot;]), (&quot;Flood&quot;, &quot;https://g/fl&quot;))</code></td></tr><tr class="line add" data-old="" data-new="444"><td class="num old"></td><td class="num new">444</td><td class="code"><code class="language-python"></code></td></tr><tr class="line add" data-old="" data-new="445"><td class="num old"></td><td class="num new">445</td><td class="code"><code class="language-python"></code></td></tr></table></div><aside class="notes-col"></aside></div>
+</section></section>
+<nav class="pager"><a class="prev" href="chapter-01.html">← 1. One poll run: ingest, the 24-hour window, the match loop and retries</a><a class="next" href="chapter-03.html">3. How Claude decides which alerts an event matches →</a></nav>
+</main>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.12.0/highlight.min.js" integrity="sha384-wjfDDhOPPdjtva8vWBhWeVprSpmxisEu5aYT3q1JyACqXpdKpo3PWZTMVq24MBix" crossorigin="anonymous"></script>
+<script>// Page behaviour for review-report. Runs after highlight.js and mermaid script
+// tags, both optional: every use is guarded so a blocked CDN leaves plain text.
+//
+// Notes layout: the renderer emits each comment as a <tr class="comment"> right
+// after its anchor line. On load those rows are lifted out and re-placed by mode:
+//   margin  — notes in a column beside the code, top-aligned to their line, pushed
+//             down as needed so they never overlap (Docco style). Default.
+//   inline  — the original GitHub-style rows between code lines.
+//   below   — numbered notes under each hunk; automatic stand-in for margin when
+//             the file block is narrow, in split view, or when printing.
+(function () {
+  var THEME_KEY = 'review-report-theme';
+  var NOTES_KEY = 'review-report-notes';
+  var DIFF_KEY = 'review-report-diff';
+  var root = document.documentElement;
+  var VIEWED_KEY = 'review-report:viewed:' + (root.dataset.reportId || 'report');
+
+  // ---------- theme ----------
+  // Persisted only when the user toggles; an untouched page keeps following the system setting.
+  function applyTheme(theme, persist) {
+    root.dataset.theme = theme;
+    var light = document.getElementById('hljs-light');
+    var dark = document.getElementById('hljs-dark');
+    if (light) light.disabled = theme === 'dark';
+    if (dark) dark.disabled = theme !== 'dark';
+    if (persist) { try { localStorage.setItem(THEME_KEY, theme); } catch (e) { /* private mode */ } }
+    renderDiagrams(theme);
+  }
+  var themeToggle = document.getElementById('theme-toggle');
+  if (themeToggle) themeToggle.addEventListener('click', function () {
+    applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+  });
+  var systemTheme = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
+  if (systemTheme && systemTheme.addEventListener) systemTheme.addEventListener('change', function (ev) {
+    var stored = null;
+    try { stored = localStorage.getItem(THEME_KEY); } catch (e) { /* private mode */ }
+    if (!stored) applyTheme(ev.matches ? 'dark' : 'light', false);
+  });
+
+  // Mermaid re-renders from the saved source so a theme change repaints diagrams.
+  // Mermaid cannot render two diagrams at once: concurrent runs draw into each other's
+  // boxes and leave others empty. So all renders go through one queue, one diagram at a
+  // time. A theme change starts a new generation; queued work from the old one is skipped.
+  // Each diagram gets its own run: a syntax error in one leaves the others rendered and
+  // only the broken one falls back to its source text.
+  var diagramQueue = Promise.resolve();
+  var diagramGeneration = 0;
+  function renderDiagrams(theme) {
+    if (typeof mermaid === 'undefined') return;
+    var nodes = document.querySelectorAll('pre.mermaid');
+    if (!nodes.length) return;
+    var generation = ++diagramGeneration;
+    var unusable = false;
+    function current() { return generation === diagramGeneration; }
+    diagramQueue = diagramQueue.then(function () {
+      if (current()) mermaid.initialize({ startOnLoad: false, theme: theme === 'dark' ? 'dark' : 'default' });
+    }).catch(function () { unusable = true; }); // every diagram keeps what it shows now
+    nodes.forEach(function (n) {
+      function restore() { n.textContent = n.dataset.source; n.removeAttribute('data-processed'); }
+      diagramQueue = diagramQueue.then(function () {
+        if (!current() || unusable) return;
+        restore();
+        return Promise.resolve(mermaid.run({ nodes: [n] })).then(function () { fitDiagram(n.closest('figure.diagram')); });
+      }).catch(restore); // a syntax error rejects; the queue moves on to the next diagram
+    });
+  }
+
+  // A diagram wider than its column is shrunk to fit: the whole flow stays in view, but its text
+  // can get small. Diagrams shrunk by more than a tenth get a "Full size" button; a smaller shrink
+  // leaves the text readable, and a button there would be noise. The button draws the diagram at
+  // its natural width and lets the box scroll sideways. The choice lives on the figure, so the
+  // re-render after a theme change keeps it.
+  function fitDiagram(fig) {
+    var svg = fig && fig.querySelector('pre.mermaid svg');
+    if (!svg || !svg.viewBox || !svg.viewBox.baseVal || !svg.viewBox.baseVal.width) return;
+    var natural = svg.viewBox.baseVal.width;
+    var full = fig.classList.contains('full');
+    svg.style.width = full ? natural + 'px' : '';
+    svg.style.maxWidth = full ? 'none' : natural + 'px';
+    var shrunk = !full && svg.getBoundingClientRect().width < natural * 0.9;
+    var button = fig.querySelector('.diagram-size');
+    if (!button && (shrunk || full)) {
+      button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'diagram-size';
+      button.addEventListener('click', function () { fig.classList.toggle('full'); fitDiagram(fig); });
+      fig.insertBefore(button, fig.firstChild);
+    }
+    if (!button) return;
+    button.hidden = !(shrunk || full);
+    button.textContent = full ? 'Fit to width' : 'Full size';
+    button.setAttribute('aria-pressed', full ? 'true' : 'false');
+  }
+  function fitDiagrams() { document.querySelectorAll('figure.diagram').forEach(fitDiagram); }
+
+  // Highlight only languages this hljs bundle ships; an unknown one would log two
+  // console lines per row and change nothing. plaintext stays: it adds the .hljs
+  // class the theme styles.
+  if (typeof hljs !== 'undefined') {
+    var known = {};
+    document.querySelectorAll('td.code code, pre > code').forEach(function (el) {
+      var m = /language-([\w-]+)/.exec(el.className);
+      var lang = m ? m[1] : '';
+      if (!(lang in known)) known[lang] = !!(hljs.getLanguage && hljs.getLanguage(lang));
+      if (!known[lang]) return;
+      try { hljs.highlightElement(el); } catch (e) { /* plain text */ }
+    });
+  }
+
+  // ---------- notes: capture ----------
+  // One record per file block: its tables and the notes lifted out of them.
+  var blocks = [];
+  document.querySelectorAll('section.file').forEach(function (section) {
+    var body = section.querySelector('.file-body');
+    if (!body) return; // not a renderer file block: an html chapter may reuse the class name
+    var notes = [];
+    section.querySelectorAll('table.diff.unified').forEach(function (table) {
+      Array.prototype.slice.call(table.querySelectorAll('tr.comment')).forEach(function (row) {
+        var anchor = row.previousElementSibling;
+        while (anchor && !anchor.classList.contains('line')) anchor = anchor.previousElementSibling;
+        if (!anchor) return;
+        notes.push({ n: notes.length + 1, anchor: anchor, table: table, el: row.querySelector('.callout'), card: null, marker: null });
+        row.parentNode.removeChild(row);
+      });
+    });
+    blocks.push({ section: section, body: body, notesCol: body.querySelector('.notes-col'), notes: notes, split: false });
+  });
+
+  // ---------- split view ----------
+  // Built lazily from the unified table. Pairs each run of deletions with the
+  // following run of additions row by row. Each unified row remembers its split
+  // row (_splitRow) so notes can find their anchor in either view. Only code rows
+  // and hunk headers are read: comment rows inserted by inline mode are layout,
+  // and would otherwise cut a deletion run off from its additions.
+  function buildSplit(unified) {
+    var split = document.createElement('table');
+    split.className = 'diff split';
+    split.innerHTML = '<colgroup><col class="num"><col class="code"><col class="num"><col class="code"></colgroup>';
+    var rows = Array.prototype.slice.call(unified.rows).filter(function (r) {
+      return r.classList.contains('line') || r.classList.contains('hunk-header');
+    });
+    function cell(cls, text, code) {
+      var td = document.createElement('td');
+      td.className = cls;
+      if (text) td.textContent = text;
+      if (code) td.appendChild(code.cloneNode(true)); // the highlighted <code> only, never a note marker
+      return td;
+    }
+    // Number and code cells for one side of a unified row.
+    function sideCells(tr, side) {
+      var type = tr.classList.contains('add') ? 'add' : tr.classList.contains('del') ? 'del' : 'ctx';
+      var num = tr.getAttribute(side === 'old' ? 'data-old' : 'data-new');
+      return [cell('num ' + side + ' ' + type, num), cell('code ' + type, null, tr.querySelector('td.code code'))];
+    }
+    function emptyCells() { return [cell('num empty'), cell('code empty')]; }
+    function emitPair(left, right) {
+      var tr = document.createElement('tr');
+      tr.className = 'line';
+      (left ? sideCells(left, 'old') : emptyCells()).concat(right ? sideCells(right, 'new') : emptyCells())
+        .forEach(function (td) { tr.appendChild(td); });
+      if (left) left._splitRow = tr;
+      if (right) right._splitRow = tr;
+      tr._unifiedRow = left || right;
+      split.appendChild(tr);
+    }
+    var i = 0;
+    while (i < rows.length) {
+      var tr = rows[i];
+      if (tr.classList.contains('hunk-header')) {
+        var header = document.createElement('tr');
+        header.className = 'hunk-header';
+        var td = document.createElement('td');
+        td.colSpan = 4;
+        td.textContent = tr.querySelector('td').textContent;
+        header.appendChild(td);
+        split.appendChild(header);
+        i++; continue;
+      }
+      if (tr.classList.contains('ctx')) { emitPair(tr, tr); i++; continue; }
+      var dels = [], adds = [];
+      while (i < rows.length && rows[i].classList.contains('del')) dels.push(rows[i++]);
+      while (i < rows.length && rows[i].classList.contains('add')) adds.push(rows[i++]);
+      var n = Math.max(dels.length, adds.length);
+      if (n === 0) { i++; continue; } // a .line row of no known type; never emitted by the renderer
+      for (var k = 0; k < n; k++) emitPair(dels[k] || null, adds[k] || null);
+    }
+    return split;
+  }
+
+  // ---------- diff layout: one setting for the whole report ----------
+  function setSplit(block, on) {
+    block.section.querySelectorAll('table.diff.unified').forEach(function (u) {
+      if (on && !u._split) { u._split = buildSplit(u); u.parentNode.insertBefore(u._split, u.nextSibling); }
+      u.style.display = on ? 'none' : '';
+      if (u._split) u._split.style.display = on ? '' : 'none';
+    });
+    block.split = on;
+  }
+
+  // Keep the reader's place across a layout change: remember the diff row (or
+  // file header) at the top of the viewport and its offset, re-lay out, then scroll
+  // so the same row sits at the same offset. Rows map 1:1 between unified and split.
+  // A stuck file header is skipped: it stays at the top while the code under it moves,
+  // so anchoring on it would keep nothing in place.
+  function anchorOnScreen() {
+    var rows = document.querySelectorAll('tr.line, header.file-header, h2');
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i].matches('header.file-header') && rows[i].closest('section.file').getBoundingClientRect().top < 0) continue;
+      var r = rows[i].getBoundingClientRect();
+      if (r.bottom > 0 && rows[i].offsetParent !== null) return { el: rows[i], offset: r.top };
+    }
+    return null;
+  }
+  function counterpart(el) {
+    if (!el || !el.classList.contains('line')) return el;
+    if (el.offsetParent !== null) return el;
+    if (el._splitRow && el._splitRow.offsetParent !== null) return el._splitRow;
+    if (el._unifiedRow && el._unifiedRow.offsetParent !== null) return el._unifiedRow;
+    return el;
+  }
+  function restoreAnchor(anchor) {
+    if (!anchor) return;
+    var el = counterpart(anchor.el);
+    var top = el.getBoundingClientRect().top;
+    window.scrollBy(0, top - anchor.offset);
+  }
+  // Runs a layout change with the reader's place preserved.
+  function withPlaceKept(change) {
+    var anchor = anchorOnScreen();
+    change();
+    restoreAnchor(anchor);
+  }
+
+  var diffToggle = document.getElementById('diff-toggle');
+  function applyDiffMode(mode, persist) {
+    root.dataset.diff = mode;
+    if (persist) { try { localStorage.setItem(DIFF_KEY, mode); } catch (e) { /* private mode */ } }
+    blocks.forEach(function (b) { setSplit(b, mode === 'split'); });
+    if (diffToggle) diffToggle.textContent = 'Diff: ' + mode;
+    layoutAll();
+  }
+  if (diffToggle) diffToggle.addEventListener('click', function () {
+    withPlaceKept(function () { applyDiffMode(root.dataset.diff === 'split' ? 'unified' : 'split', true); });
+  });
+
+  // ---------- notes: placement ----------
+  function clearNotes(block) {
+    if (hint && hint.block === block) closeHint();
+    block.section.querySelectorAll('tr.annotated').forEach(function (r) { r._wired = false; r.classList.remove('annotated'); });
+    block.section.querySelectorAll('.hint-target').forEach(function (c) { c.classList.remove('hint-target'); });
+    block.notes.forEach(function (n) { n.card = null; n.marker = null; });
+    block.section.querySelectorAll('tr.comment, .notes-below, .note-marker').forEach(function (n) { n.parentNode.removeChild(n); });
+    block.section.querySelectorAll('td.note-anchor').forEach(function (c) { c.classList.remove('note-anchor'); });
+    block.notesCol.innerHTML = '';
+    block.body.classList.remove('has-margin');
+  }
+  function visibleRow(note, block) {
+    return block.split && note.anchor._splitRow ? note.anchor._splitRow : note.anchor;
+  }
+  function visibleTable(note, block) {
+    return block.split && note.table._split ? note.table._split : note.table;
+  }
+  // All notes whose anchor currently renders on this row, in story order.
+  function notesOnRow(row) {
+    var out = [];
+    blocks.forEach(function (b) { b.notes.forEach(function (n) { if (visibleRow(n, b) === row) out.push(n); }); });
+    return out;
+  }
+  function marker(n) {
+    var m = document.createElement('span');
+    m.className = 'note-marker';
+    m.textContent = n;
+    return m;
+  }
+
+  // Hovering the text of an annotated line opens its notes in a row inserted right
+  // under that line. The code below moves down instead of being covered, so the next
+  // lines stay readable; leaving the text removes the row and the code moves back.
+  // Clicking the circle pins the row open until it, or the page, is clicked again.
+  var pinned = null;   // the note whose hint row stays open
+  var hint = null;     // { row, tr, block, shifted: [cards] } for the open hint row
+  function clearActive() {
+    blocks.forEach(function (b) { b.notes.forEach(function (n) { if (n.card) n.card.classList.remove('active'); }); });
+  }
+  function blockOf(row) {
+    var sec = row.closest('section.file');
+    return blocks.filter(function (b) { return b.section === sec; })[0];
+  }
+  function closeHint() {
+    if (!hint) return;
+    hint.shifted.forEach(function (card) { card.style.transform = ''; });
+    if (hint.colHeight !== null && hint.block) hint.block.notesCol.style.minHeight = hint.colHeight;
+    if (hint.tr.parentNode) hint.tr.parentNode.removeChild(hint.tr);
+    hint = null;
+    clearActive();
+  }
+  function openHint(row, notes, isPinned) {
+    if (hint && hint.row === row) { hint.tr.classList.toggle('pinned', !!isPinned); return; }
+    closeHint();
+    var tr = document.createElement('tr');
+    tr.className = 'hint-row' + (isPinned ? ' pinned' : '');
+    var gutter = document.createElement('td');
+    gutter.colSpan = row.querySelectorAll('td.num').length || 1;
+    gutter.className = 'hint-gutter';
+    var td = document.createElement('td');
+    td.colSpan = Math.max(1, row.children.length - gutter.colSpan);
+    notes.forEach(function (n) { td.appendChild(n.el.cloneNode(true)); });
+    tr.appendChild(gutter);
+    tr.appendChild(td);
+    tr.addEventListener('click', function (ev) { ev.stopPropagation(); }); // reading or selecting in a pinned hint keeps it open
+    row.parentNode.insertBefore(tr, row.nextSibling);
+    // Margin cards are positioned absolutely; move the ones below the line down by the
+    // same amount so they stay level with their code.
+    var block = blockOf(row);
+    var shifted = [];
+    var colHeight = null;
+    if (block && block.body.classList.contains('has-margin')) {
+      var h = tr.offsetHeight;
+      // The notes column grows with the pushed cards, so the lowest card never hangs past the block.
+      colHeight = block.notesCol.style.minHeight;
+      block.notesCol.style.minHeight = ((parseFloat(colHeight) || 0) + h) + 'px';
+      var cut = row.getBoundingClientRect().bottom - block.body.getBoundingClientRect().top;
+      block.notes.forEach(function (n) {
+        // Cards of this line's own notes stay put; only cards for lines below move.
+        if (!n.card || notes.indexOf(n) !== -1) return;
+        if (parseFloat(n.card.style.top) >= cut - 1) { n.card.style.transform = 'translateY(' + h + 'px)'; shifted.push(n.card); }
+      });
+    }
+    hint = { row: row, tr: tr, block: block, shifted: shifted, colHeight: colHeight };
+    clearActive();
+    notes.forEach(function (n) { if (n.card) n.card.classList.add('active'); });
+  }
+  // The source text itself is the hover target: the inline <code> box ends where the
+  // text ends, so empty space in the cell, the line-number column and the margin all
+  // dismiss the hint. The circle stays as the cue and the pin control.
+  function wireRow(row, notes, cell) {
+    row.classList.add('annotated');
+    var text = cell.querySelector('code') || cell;
+    text.classList.add('hint-target');
+    text.addEventListener('mouseenter', function () { if (!pinned) openHint(row, notes, false); });
+    text.addEventListener('mouseleave', function () { if (!pinned && hint && hint.row === row) closeHint(); });
+  }
+  function unpin() {
+    pinned = null;
+    closeHint();
+  }
+  // Every layout rebuilds the markers and drops the hint row. The pinned note
+  // re-opens under its new marker's line, or lets go when the mode has none (inline).
+  function refreshPinned() {
+    if (!pinned) return;
+    if (pinned.marker && pinned.marker.isConnected) { var row = pinned.marker.closest('tr'); openHint(row, notesOnRow(row), true); }
+    else unpin();
+  }
+  function wireMarker(el, note) {
+    el.addEventListener('mouseenter', function (ev) { ev.stopPropagation(); if (!pinned) openHint(el.closest('tr'), notesOnRow(el.closest('tr')), false); });
+    el.addEventListener('mouseleave', function () { if (!pinned && hint && hint.row === el.closest('tr')) closeHint(); });
+    el.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      if (pinned === note) { unpin(); return; }
+      pinned = note;
+      var row = el.closest('tr');
+      openHint(row, notesOnRow(row), true);
+    });
+  }
+  document.addEventListener('click', function () { if (pinned) unpin(); });
+
+  var printing = false;
+  function effectiveMode(block) {
+    var wanted = root.dataset.notes === 'inline' ? 'inline' : 'margin';
+    if (wanted === 'inline') return 'inline';
+    if (printing || block.split || block.body.clientWidth < 900) return 'below';
+    return 'margin';
+  }
+  function layoutBlock(block) {
+    clearNotes(block);
+    if (!block.notes.length) return;
+    var mode = effectiveMode(block);
+
+    if (mode === 'inline') {
+      block.notes.forEach(function (note) {
+        var row = visibleRow(note, block);
+        var tr = document.createElement('tr');
+        tr.className = 'comment';
+        var td = document.createElement('td');
+        td.colSpan = block.split ? 4 : 3;
+        td.appendChild(note.el);
+        tr.appendChild(td);
+        // After any notes already placed under this row, so several notes on one line keep story order.
+        var after = row;
+        while (after.nextElementSibling && after.nextElementSibling.classList.contains('comment')) after = after.nextElementSibling;
+        row.parentNode.insertBefore(tr, after.nextSibling);
+      });
+      return;
+    }
+
+    // Both remaining modes mark the anchor line and number the notes.
+    block.notes.forEach(function (note) {
+      var row = visibleRow(note, block);
+      var cells = row.querySelectorAll('td.code');
+      var cell = cells.length === 1 ? cells[0] : (note.anchor.classList.contains('del') ? cells[0] : cells[1]);
+      cell.classList.add('note-anchor');
+      var m = marker(note.n);
+      wireMarker(m, note);
+      note.marker = m;
+      cell.appendChild(m);
+      if (!row._wired) { row._wired = true; wireRow(row, notesOnRow(row), cell); }
+    });
+
+    if (mode === 'below') {
+      var byTable = new Map();
+      block.notes.forEach(function (note) {
+        var t = visibleTable(note, block);
+        if (!byTable.has(t)) byTable.set(t, []);
+        byTable.get(t).push(note);
+      });
+      byTable.forEach(function (notes, table) {
+        var box = document.createElement('div');
+        box.className = 'notes-below';
+        notes.forEach(function (note) {
+          var item = document.createElement('div');
+          item.className = 'note';
+          item.appendChild(marker(note.n));
+          item.appendChild(note.el);
+          note.card = item;
+          box.appendChild(item);
+        });
+        table.parentNode.insertBefore(box, table.nextSibling);
+      });
+      return;
+    }
+
+    // margin: absolute-position each note at its anchor's top, then push down to avoid overlap.
+    // All cards are appended first and all positions read before any top is written,
+    // so the browser lays the block out once instead of once per note.
+    block.body.classList.add('has-margin');
+    var items = block.notes.map(function (note) {
+      var item = document.createElement('div');
+      item.className = 'note';
+      item.appendChild(marker(note.n));
+      item.appendChild(note.el);
+      note.card = item;
+      block.notesCol.appendChild(item);
+      return item;
+    });
+    var bodyTop = block.body.getBoundingClientRect().top;
+    var tops = block.notes.map(function (note) { return visibleRow(note, block).getBoundingClientRect().top - bodyTop; });
+    var heights = items.map(function (item) { return item.offsetHeight; });
+    var cursor = 0;
+    items.forEach(function (item, k) {
+      var top = Math.max(tops[k], cursor);
+      item.style.top = top + 'px';
+      cursor = top + heights[k] + 8;
+    });
+    // The column must be tall enough for the last note even if it hangs below the code.
+    block.notesCol.style.minHeight = (cursor - 8) + 'px';
+  }
+  function layoutAll() {
+    blocks.forEach(layoutBlock);
+    refreshPinned();
+    if (!notesToggle) return;
+    var wanted = root.dataset.notes === 'inline' ? 'inline' : 'margin';
+    var anyBelow = wanted === 'margin' && blocks.some(function (b) { return b.notes.length && effectiveMode(b) === 'below'; });
+    notesToggle.textContent = 'Notes: ' + wanted + (anyBelow ? ' (below hunks here)' : '');
+    notesToggle.title = anyBelow
+      ? 'Margin notes need a wider window; in split view and narrow blocks they are listed below each hunk'
+      : 'Notes beside the code, or inline between lines';
+  }
+
+  var notesToggle = document.getElementById('notes-toggle');
+  function applyNotesMode(mode, persist) {
+    root.dataset.notes = mode;
+    if (persist) { try { localStorage.setItem(NOTES_KEY, mode); } catch (e) { /* private mode */ } }
+    layoutAll();
+  }
+  if (notesToggle) notesToggle.addEventListener('click', function () {
+    withPlaceKept(function () { applyNotesMode(root.dataset.notes === 'inline' ? 'margin' : 'inline', true); });
+  });
+
+  // ---------- viewed: manual, per report, per file ----------
+  // Stored as { path: hash } under a key that includes the report id. A tick is kept
+  // only while the file's diff hash still matches, so a re-render that changed the
+  // file drops the tick for that file and nothing else.
+  function readViewed() {
+    try { return JSON.parse(localStorage.getItem(VIEWED_KEY) || '{}') || {}; } catch (e) { return {}; }
+  }
+  function writeViewed(state) {
+    try { localStorage.setItem(VIEWED_KEY, JSON.stringify(state)); } catch (e) { /* private mode */ }
+  }
+  function fileBlocks(path) {
+    return Array.prototype.filter.call(document.querySelectorAll('section.file'), function (s) { return s.dataset.path === path; });
+  }
+  function markViewed(path, on) {
+    fileBlocks(path).forEach(function (sec) {
+      sec.classList.toggle('is-viewed', on);
+      var box = sec.querySelector('.viewed-toggle');
+      if (box) box.checked = on;
+    });
+    document.querySelectorAll('.file-index a[data-file]').forEach(function (a) {
+      if (a.dataset.file === path) a.parentNode.classList.toggle('is-viewed', on);
+    });
+  }
+  function updateProgress(state) {
+    var viewed = Object.keys(state).length;
+    document.querySelectorAll('.viewed-count').forEach(function (el) {
+      var total = Number(el.dataset.total) || 0;
+      el.textContent = viewed + ' of ' + total + ' viewed';
+      var fill = el.parentNode.querySelector('.fill');
+      if (fill) fill.style.width = (total ? Math.min(100, Math.round(viewed / total * 100)) : 0) + '%';
+    });
+    // Per chapter: the index list, the sidebar entry and the chapter heading all show how many of
+    // the chapter's files are viewed, and switch to a tick when all are.
+    function chapterCount(el) {
+      var paths = el.dataset.files ? el.dataset.files.split('|') : [];
+      return { total: paths.length, done: paths.filter(function (p) { return p in state; }).length };
+    }
+    document.querySelectorAll('.chapter-list li[data-files]').forEach(function (li) {
+      var n = chapterCount(li);
+      if (!n.total) return;
+      var tag = li.querySelector('.viewed-of');
+      if (!tag) { tag = document.createElement('span'); tag.className = 'viewed-of'; li.querySelector('a').insertAdjacentElement('afterend', tag); }
+      tag.textContent = n.done + ' of ' + n.total + ' viewed';
+      li.classList.toggle('is-viewed', n.done === n.total);
+    });
+    document.querySelectorAll('.toc li[data-files]').forEach(function (li) {
+      var n = chapterCount(li);
+      var tag = li.querySelector('.chapter-progress');
+      if (tag) tag.textContent = n.done === n.total ? '' : n.done + '/' + n.total;
+      li.classList.toggle('is-viewed', n.total > 0 && n.done === n.total);
+    });
+    document.querySelectorAll('section.chapter[data-files]').forEach(function (sec) {
+      var n = chapterCount(sec);
+      var tag = sec.querySelector('.chapter-viewed');
+      if (tag) tag.textContent = n.done === n.total ? 'All files viewed' : n.done + ' of ' + n.total + ' files viewed';
+      sec.classList.toggle('is-viewed', n.total > 0 && n.done === n.total);
+    });
+  }
+  // A re-render after the branch moved gets a new report id (the id hashes the diff), so ticks made
+  // on earlier renders live under other keys. Merge them in, once per earlier render: only files whose
+  // diff hash is unchanged (a file new commits touched needs a fresh look), and never twice, so a file
+  // unticked after the merge stays unticked. The merged render ids are remembered under ADOPTED_KEY.
+  function adoptEarlierTicks() {
+    try {
+      var id = root.dataset.reportId || '';
+      var prefix = 'review-report:viewed:' + id.replace(/-[0-9a-f]{8}$/, '') + '-';
+      var ADOPTED_KEY = 'review-report:adopted:' + id;
+      var done = JSON.parse(localStorage.getItem(ADOPTED_KEY) || '[]') || [];
+      var current = {};
+      document.querySelectorAll('section.file[data-hash]').forEach(function (sec) { current[sec.dataset.path] = sec.dataset.hash; });
+      var state = readViewed();
+      var merged = false;
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (k === VIEWED_KEY || k.indexOf(prefix) !== 0 || !/^[0-9a-f]{8}$/.test(k.slice(prefix.length)) || done.indexOf(k) !== -1) continue;
+        var old = JSON.parse(localStorage.getItem(k) || '{}') || {};
+        Object.keys(old).forEach(function (p) { if (current[p] && old[p] === current[p] && !(p in state)) { state[p] = old[p]; merged = true; } });
+        done.push(k);
+      }
+      if (merged) writeViewed(state);
+      localStorage.setItem(ADOPTED_KEY, JSON.stringify(done));
+    } catch (e) { /* storage unavailable: keep what this render has */ }
+  }
+  function initViewed() {
+    adoptEarlierTicks();
+    var state = readViewed();
+    var changed = false;
+    // Drop ticks for files whose diff changed since they were ticked.
+    document.querySelectorAll('section.file[data-hash]').forEach(function (sec) {
+      var p = sec.dataset.path;
+      if (p in state && state[p] !== sec.dataset.hash) { delete state[p]; changed = true; }
+    });
+    if (changed) writeViewed(state);
+    Object.keys(state).forEach(function (p) { markViewed(p, true); });
+    updateProgress(state);
+    document.querySelectorAll('.viewed-toggle').forEach(function (box) {
+      box.addEventListener('change', function () {
+        var sec = box.closest('section.file');
+        var stuck = sec.getBoundingClientRect().top < 0; // ticked from the sticky header, mid-file
+        toggleViewed(sec.dataset.path, sec.dataset.hash, box.checked);
+        // The file folded under the reader: bring its header to the top so the next file follows right below.
+        if (stuck && box.checked) window.scrollBy(0, sec.getBoundingClientRect().top);
+      });
+    });
+  }
+  function toggleViewed(path, hash, on) {
+    var state = readViewed();
+    if (on) state[path] = hash; else delete state[path];
+    writeViewed(state);
+    markViewed(path, on);
+    updateProgress(state);
+  }
+  // Ticks made in another tab of the same report show up here too.
+  window.addEventListener('storage', function (ev) {
+    if (ev.key !== VIEWED_KEY) return;
+    var state = readViewed();
+    document.querySelectorAll('section.file[data-path]').forEach(function (sec) { markViewed(sec.dataset.path, sec.dataset.path in state); });
+    updateProgress(state);
+  });
+  // `v` toggles the file block under the pointer; ignored while typing.
+  var hoveredBlock = null;
+  document.addEventListener('mouseover', function (ev) {
+    var sec = ev.target.closest && ev.target.closest('section.file');
+    if (sec) hoveredBlock = sec;
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key !== 'v' || ev.metaKey || ev.ctrlKey || ev.altKey) return;
+    var t = ev.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    if (!hoveredBlock || !hoveredBlock.dataset.hash) return;
+    var on = !hoveredBlock.classList.contains('is-viewed');
+    withPlaceKept(function () { toggleViewed(hoveredBlock.dataset.path, hoveredBlock.dataset.hash, on); });
+  });
+
+  window.addEventListener('beforeprint', function () { printing = true; layoutAll(); });
+  window.addEventListener('afterprint', function () { printing = false; layoutAll(); });
+  // Note positions depend on block width only; a height-only resize changes nothing.
+  var resizeTimer = null;
+  var laidOutWidth = window.innerWidth;
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () {
+      if (window.innerWidth === laidOutWidth) return;
+      laidOutWidth = window.innerWidth;
+      layoutAll();
+      fitDiagrams(); // a narrower window can shrink a diagram that fitted before
+    }, 100);
+  });
+
+  applyTheme(root.dataset.theme || 'light', false);
+  if (root.dataset.diff === 'split') blocks.forEach(function (b) { setSplit(b, true); });
+  if (diffToggle) diffToggle.textContent = 'Diff: ' + (root.dataset.diff === 'split' ? 'split' : 'unified');
+  applyNotesMode(root.dataset.notes === 'inline' ? 'inline' : 'margin', false);
+  initViewed();
+  // Highlighting and fonts can change row heights after first layout.
+  window.addEventListener('load', layoutAll);
+})();
+</script>
+</body>
+</html>
