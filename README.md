@@ -41,31 +41,36 @@ Feed and matching settings live in `config/settings.py`: `EVENT_RSS_FEEDS`, `ALE
   GDACS earthquakes are skipped because USGS already covers them.
 
 There is no market feed. Market events (category `market`) are added by hand in admin
-(`/admin/alerts/event/add/`) and are matched and delivered on the next poll run.
+(`/admin/alerts/event/add/`). Use source `manual` and an external id that is unique for that source. Manual events are matched and delivered on the next poll run, whatever their date.
 
 ## Polling
 
-Run the poller from cron every 5 minutes:
+Run the poller from cron every 5 minutes. Cron doesn't load your shell environment, so put the
+variables above in a wrapper script or in the crontab itself, and keep a log:
 
 ```
-*/5 * * * * cd <dir> && flock -n /tmp/poll_events.lock uv run python manage.py poll_events
+*/5 * * * * cd <dir> && flock -n ~/poll_events.lock uv run python manage.py poll_events >> ~/poll_events.log 2>&1
 ```
 
 `flock -n` skips a run while the previous one is still going (a slow Claude call can take
-minutes), so overlapping runs can't send the same notification twice.
+minutes), so two runs never overlap. A crash between sending a notification and recording it
+can still send it again on the next run.
 
 Each run fetches every source, stores new events (deduplicated by source + external id),
 asks Claude once per unmatched event which active alerts it satisfies, sends to each matched
-alert's channels and records a `Notification` per channel. If the Claude call fails, the
-event stays unmatched and is retried on the next run. A failing source or channel is logged
-and does not stop the run. Events added by hand in admin are picked up the same way.
+alert's channels and records a `Notification` per channel. Only feed events from the last 24
+hours are matched and sent; older ones are marked done without a Claude call or a notification,
+so a first deploy or an outage doesn't send old news. If a Claude call fails with any API error,
+the event stays unmatched and is retried on the next run. After 3 failed calls in a row, a run
+stops matching and the rest waits for the next run. A failing source or channel is logged and
+does not stop the run.
 
 Failed sends are retried automatically: each run re-sends every `failed` notification from an
 earlier run, up to 3 attempts in total (`attempts` column in the admin notification log).
 After the third failure it stays `failed`.
 
-The first run after setup stores everything currently in the feeds (a few hundred events) and
-makes one Claude call per event that has active alerts to check.
+The first run after setup stores everything currently in the feeds. Only the recent events get a
+Claude call; the rest are marked done.
 
 ## Adding a channel
 

@@ -159,3 +159,27 @@ Review pass done. Spec `done`. 34 tests pass (was 28). `check` and `makemigratio
 
 Not checked: new tests not mutation-checked. Credit fix matches the text "credit balance", from web reports, not official docs. Escaping changes what Haiku sees; nothing ran against the real API.
 Risk: spec again recommends a follow-up review, because a high was patched.
+
+### Follow-up prompt (9)
+
+/model (run directly in Claude Code) — set model Haiku 5.5, saved as default; effort max, this session only.
+
+Always log the model and effort changes into docs/PROMPTS.md
+
+---
+
+## 2026-11-19 — after prompt 9 (log model and effort change)
+
+### Response
+
+Logged as prompt 9 in `docs/PROMPTS.md`:
+- **Model:** Sonnet 5.5 → Haiku 5.5, saved as default.
+- **Effort:** max, this session only. Default still xhigh.
+
+I also made the rule explicit in memory: every `/model` change gets logged, session-only ones too. The follow-up is in `docs/VALIDATION-LOG.md` under the prompt 8 entry.
+
+Not committed. Skipped: nothing else changed. Risk: none for the logs.
+
+### Follow-up prompt (10)
+
+/bmad-build-auto _bmad-output/implementation-artifacts/spec-world-event-alerts.md

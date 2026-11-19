@@ -37,13 +37,9 @@ def match_event(event, alerts):
             messages=[{"role": "user", "content": content}],
             output_format=MatchResult,
         )
-    except anthropic.BadRequestError as e:
-        if "credit balance" in str(e).lower():  # an account problem, not this event's: keep it for the next run
-            log.error("Matching failed for event %s (no API credit), will retry: %s", event.pk, e)
-            return None
-        log.error("Matching rejected for event %s, not retrying: %s", event.pk, e)
-        return []  # permanent (e.g. prompt too large): retrying would fail and bill forever
     except anthropic.APIError as e:
+        # 400s too: the alert prompt is shared, so a rejected prompt would drop every event for every user.
+        # poll_events stops after repeated failures, which bounds the cost of retrying.
         log.error("Matching failed for event %s, will retry: %s", event.pk, e)
         return None
     except pydantic.ValidationError as e:

@@ -5,6 +5,7 @@ from .models import Alert, AlertChannel, Event, Notification
 
 @admin.register(Event)
 class EventAdmin(admin.ModelAdmin):
+    readonly_fields = ["matched_at"]
     list_display = ["title", "category", "source", "occurred_at", "matched_at"]
     list_filter = ["category", "source", "matched_at"]
     search_fields = ["title", "summary"]

@@ -29,7 +29,7 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY') or get_random_secret_key()
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DJANGO_DEBUG', '') == '1'
 
-ALLOWED_HOSTS = [h for h in os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if h]
+ALLOWED_HOSTS = [h.strip() for h in os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if h.strip()]
 
 
 # Application definition
@@ -131,7 +131,7 @@ MAILERS = {
         'BACKEND': 'django.core.mail.backends.smtp.EmailBackend',
         'OPTIONS': {
             'host': os.environ['EMAIL_HOST'],
-            'port': int(os.environ.get('EMAIL_PORT', '587')),
+            'port': int(os.environ.get('EMAIL_PORT') or 587),
             'username': os.environ.get('EMAIL_HOST_USER', ''),
             'password': os.environ.get('EMAIL_HOST_PASSWORD', ''),
             'use_tls': os.environ.get('EMAIL_USE_TLS', '1').lower() in ('1', 'true', 'yes'),

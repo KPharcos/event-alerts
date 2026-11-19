@@ -120,3 +120,25 @@ Please log the model and effort changes into docs/PROMPTS.md
 ## 2026-11-19 — 8
 
 /bmad-build-auto _bmad-output/implementation-artifacts/spec-world-event-alerts.md
+
+## 2026-11-19 — 9
+
+/model (run directly in Claude Code, not sent to Claude) — output: "Set model to `Haiku 5.5` and saved as your default for new sessions · `max` effort for this session only"
+
+Always log the model and effort changes into docs/PROMPTS.md
+
+### Settings changes
+
+- **Model:** Sonnet 5.5 (`claude-sonnet-5-5`) → **Haiku 5.5** (`claude-haiku-5-5`). Saved as default for new sessions.
+- **Effort:** **max**, this session only. Not saved as default. Default effort unchanged (still xhigh from prompt 7).
+
+## 2026-11-19 — 10
+
+/bmad-build-auto _bmad-output/implementation-artifacts/spec-world-event-alerts.md
+
+### Questions — round 1 (review triage, pass 3)
+
+**Which old events may notify an alert? First poll stores about 250 existing events, and a new alert would also match events from before it was saved. Which rule should apply?**
+- **✔ Last 24 hours only (Recommended)** — Events older than 24 h are marked done without sending. Fixes the first-deploy flood, outage backlogs and new alerts matching old news.
+- Send everything unmatched (current) — Keeps today's behavior: first deploy sends matches for the whole backlog at once; alerts match any old unmatched event.
+- Only events after the alert was saved — Each alert ignores events that happened before it existed. Needs a per-alert time check, so more code.

@@ -12,7 +12,7 @@
     <td>{{ alert.description }}</td>
     <td>{{ alert.active|yesno:"Yes,No" }}</td>
     <td>{% for c in alert.channels.all %}{{ c.get_channel_display }}: {{ c.target }}{% if not forloop.last %}<br>{% endif %}{% empty %}None{% endfor %}</td>
-    <td><a href="{% url 'alert_update' alert.pk %}">Edit</a> <a href="{% url 'alert_delete' alert.pk %}">Delete</a></td>
+    <td><a href="{% url 'alert_update' alert.pk %}" aria-label="Edit {{ alert.name }}">Edit</a> <a href="{% url 'alert_delete' alert.pk %}" aria-label="Delete {{ alert.name }}">Delete</a></td>
   </tr>
   {% endfor %}
   </tbody>

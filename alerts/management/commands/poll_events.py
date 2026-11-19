@@ -1,4 +1,5 @@
 import logging
+from datetime import timedelta
 
 from django.core.management.base import BaseCommand
 from django.utils import timezone
@@ -11,6 +12,8 @@ from alerts.sources import SOURCES
 log = logging.getLogger("alerts.poll")
 
 MAX_ATTEMPTS = 3
+MATCH_WINDOW = timedelta(hours=24)  # older feed events are marked done without matching or sending
+MAX_MATCH_FAILURES = 3  # stop calling Claude after this many failures in a row
 
 
 def message(alert, event):
@@ -35,6 +38,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         run_started = timezone.now()
+        cutoff = run_started - MATCH_WINDOW
         for name, fetch in SOURCES.items():
             try:
                 created = 0
@@ -48,11 +52,21 @@ class Command(BaseCommand):
                 log.exception("Source %s failed", name)
 
         alerts = list(Alert.objects.filter(active=True, user__is_active=True).prefetch_related("channels"))
+        # Old feed events are marked done without a Claude call or a notification, so a first deploy
+        # or an outage doesn't send old news. Admin-added events always match, whatever their date.
+        Event.objects.filter(matched_at__isnull=True, occurred_at__lt=cutoff).exclude(source="manual").update(
+            matched_at=run_started
+        )
+        failures = 0
         for event in Event.objects.filter(matched_at__isnull=True).order_by("occurred_at"):
+            if failures >= MAX_MATCH_FAILURES:
+                log.error("Matching failed %d times in a row; the rest waits for the next run", failures)
+                break
             try:
-                self.process(event, alerts)
+                failures = 0 if self.process(event, alerts) else failures + 1
             except Exception:
                 log.exception("Processing event %s failed", event.pk)
+                failures += 1
 
         # Retry sends that failed in earlier runs (not this one), up to MAX_ATTEMPTS in total.
         retry = Notification.objects.filter(
@@ -67,7 +81,7 @@ class Command(BaseCommand):
     def process(self, event, alerts):
         ids = match_event(event, alerts) if alerts else []
         if ids is None:
-            return  # matcher failed; leave matched_at null so the next run retries
+            return False  # matcher failed; leave matched_at null so the next run retries
         by_id = {a.id: a for a in alerts}
         for alert_id in ids:
             alert = by_id[alert_id]
@@ -79,3 +93,4 @@ class Command(BaseCommand):
                 Notification.objects.create(alert_channel=ac, event=event, status=status, error=error)
         event.matched_at = timezone.now()
         event.save(update_fields=["matched_at"])
+        return True

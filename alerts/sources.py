@@ -26,7 +26,10 @@ def _get(url):
 
 def _rss_items(url, category):
     events = []
-    for item in ET.fromstring(_get(url)).iter("item"):
+    items = list(ET.fromstring(_get(url)).iter("item"))
+    if not items:
+        log.warning("No RSS <item> elements in %s; Atom and RDF feeds are not supported", url)
+    for item in items:
         link = (item.findtext("link") or "").strip()
         ext_id = (item.findtext("guid") or "").strip() or link
         if not ext_id:
