@@ -1,0 +1,16 @@
+{% extends "alerts/base.html" %}
+{% block content %}
+<h1>{% if alert.pk %}Edit alert{% else %}New alert{% endif %}</h1>
+<form method="post">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <h2>Channels</h2>
+  {{ formset.management_form }}
+  {{ formset.non_form_errors }}
+  {% for f in formset %}
+  <fieldset>{{ f.as_p }}</fieldset>
+  {% endfor %}
+  <button type="submit">Save</button>
+  <a href="{% url 'alert_list' %}">Cancel</a>
+</form>
+{% endblock %}

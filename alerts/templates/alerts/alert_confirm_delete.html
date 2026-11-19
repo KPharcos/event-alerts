@@ -1,0 +1,10 @@
+{% extends "alerts/base.html" %}
+{% block content %}
+<h1>Delete alert</h1>
+<p>Delete "{{ alert.name }}" and its channels?</p>
+<form method="post">
+  {% csrf_token %}
+  <button type="submit">Delete</button>
+  <a href="{% url 'alert_list' %}">Cancel</a>
+</form>
+{% endblock %}

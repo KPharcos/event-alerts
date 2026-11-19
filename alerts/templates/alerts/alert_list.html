@@ -1,0 +1,23 @@
+{% extends "alerts/base.html" %}
+{% block content %}
+<h1>My alerts</h1>
+<p><a href="{% url 'alert_create' %}">New alert</a></p>
+{% if alerts %}
+<table>
+  <thead><tr><th>Name</th><th>Description</th><th>Active</th><th>Channels</th><th></th></tr></thead>
+  <tbody>
+  {% for alert in alerts %}
+  <tr>
+    <td>{{ alert.name }}</td>
+    <td>{{ alert.description }}</td>
+    <td>{{ alert.active|yesno:"Yes,No" }}</td>
+    <td>{% for c in alert.channels.all %}{{ c.get_channel_display }}: {{ c.target }}{% if not forloop.last %}<br>{% endif %}{% empty %}None{% endfor %}</td>
+    <td><a href="{% url 'alert_update' alert.pk %}">Edit</a> <a href="{% url 'alert_delete' alert.pk %}">Delete</a></td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>No alerts yet.</p>
+{% endif %}
+{% endblock %}
