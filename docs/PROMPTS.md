@@ -105,3 +105,18 @@ Make the first commit + push to https://github.com/KPharcos
 - Commit all (Recommended) — Includes the framework (about 2 MB of skills) and the spec, so anyone who clones the repo gets the same workflow.
 - **✔ Only _bmad-output (spec)** — Keeps the spec and leaves out the installed framework (_bmad/, .claude/) with a .gitignore entry.
 - None — App code and docs only.
+
+## 2026-11-19 — 7
+
+/model (run directly in Claude Code, not sent to Claude) — output: "Set model to `Sonnet 5.5` and saved as your default for new sessions with `xhigh` effort"
+
+Please log the model and effort changes into docs/PROMPTS.md
+
+### Settings changes
+
+- **Model:** Opus 5.5 (`claude-opus-5-5`) → **Sonnet 5.5** (`claude-sonnet-5-5`). Saved as default for new sessions.
+- **Effort:** **xhigh**, saved as default for new sessions. The previous effort level was not shown in the session.
+
+## 2026-11-19 — 8
+
+/bmad-build-auto _bmad-output/implementation-artifacts/spec-world-event-alerts.md

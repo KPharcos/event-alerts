@@ -134,7 +134,7 @@ MAILERS = {
             'port': int(os.environ.get('EMAIL_PORT', '587')),
             'username': os.environ.get('EMAIL_HOST_USER', ''),
             'password': os.environ.get('EMAIL_HOST_PASSWORD', ''),
-            'use_tls': os.environ.get('EMAIL_USE_TLS', '1') == '1',
+            'use_tls': os.environ.get('EMAIL_USE_TLS', '1').lower() in ('1', 'true', 'yes'),
             'timeout': 10,
         },
     } if os.environ.get('EMAIL_HOST') else {

@@ -27,7 +27,7 @@ uv run python manage.py runserver
 | `EMAIL_HOST` | SMTP host; when unset, emails are printed to the console | unset |
 | `EMAIL_PORT` | SMTP port | `587` |
 | `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD` | SMTP credentials | empty |
-| `EMAIL_USE_TLS` | `1` for STARTTLS | `1` |
+| `EMAIL_USE_TLS` | `1` or `true` for STARTTLS | `1` |
 | `DEFAULT_FROM_EMAIL` | Sender address | `alerts@localhost` |
 | `ANTHROPIC_API_KEY` | Claude API key (read by the `anthropic` SDK) | — |
 

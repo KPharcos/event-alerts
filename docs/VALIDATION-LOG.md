@@ -93,3 +93,69 @@ Wording of the questions and options is copied from the calls I made this sessio
 ### Follow-up prompt (5)
 
 Save every worth checking response and the follow up prompt in docs/VALIDATION-LOG.md (like this one: "The alerts app is built and...")
+
+---
+
+## 2026-11-19 — after prompt 6 (first commit + push)
+
+### Response
+
+I pushed the project to https://github.com/KPharcos/event-alerts. It's a public repo on branch `main` with one commit, `f798f17`.
+
+- **What's in it:** 35 files: the app code, tests, migrations, README, `uv.lock`, the spec in `_bmad-output/`, and both log files in `docs/`.
+- **Left out by the new `.gitignore`:** the BMAD framework (`_bmad/`, `.claude/`), `.venv/`, `db.sqlite3` and any `.env` files.
+- **Secrets check:** I searched the committed files for API keys, tokens and your email. Nothing real turned up; the only match was the fake Slack URL in `alerts/tests.py`.
+- **Logs:** this prompt and your three answers are in `docs/PROMPTS.md`, which made it into the commit.
+
+The new entry for this reply in `docs/VALIDATION-LOG.md` was written after the push, so it isn't in the commit yet. Say if you want me to commit and push it. I haven't looked at the repo page on GitHub. Anyone who clones it has to run `npx bmad-method install` to get the BMAD skills back.
+
+### Follow-up prompt (7)
+
+/model (run directly in Claude Code) — set model to Sonnet 5.5, effort xhigh, saved as default.
+
+Please log the model and effort changes into docs/PROMPTS.md
+
+---
+
+## 2026-11-19 — after prompt 7 (log model and effort change)
+
+### Response
+
+Logged the model and effort change in `docs/PROMPTS.md` as prompt 7. It's under a `### Settings changes` heading:
+- **Model:** Opus 5.5 → Sonnet 5.5, saved as default.
+- **Effort:** xhigh, saved as default. The old effort level wasn't shown in the session, so I didn't record one.
+
+I also fixed the prompt 6 entry in `docs/VALIDATION-LOG.md`. It now has my actual last reply word for word, and your prompt 7 as the follow-up. And I saved a memory rule so later `/model` changes get logged the same way.
+
+Nothing is committed yet: the two doc edits and the earlier log entry are still local. Say if you want a second commit and push.
+
+### Follow-up prompt (8)
+
+/bmad-build-auto _bmad-output/implementation-artifacts/spec-world-event-alerts.md
+
+---
+
+## 2026-11-19 — after prompt 8 (bmad-build-auto: follow-up review pass)
+
+### Response
+
+Review pass done. Spec `done`. 34 tests pass (was 28). `check` and `makemigrations --check` clean.
+
+54 findings, 4 reviewers: high 2, medium 9, low 34, false 9. Fixed 16 (5 real bugs + test gaps). Rejected 38. Reasons in spec triage log.
+
+**Fixed**
+- **Credit out = events lost (high).** No API credit gives HTTP 400. My old fix called all 400s permanent, so events were marked matched and gone. Now a "credit balance" 400 retries next run.
+- **Prompt break-out (medium).** Alert text could close its tag and steer other users' matches. Alert and feed text now XML-escaped.
+- **Deactivated users still got alerts (medium).** Poll and retry now skip them.
+- **`EMAIL_USE_TLS=true` meant TLS off (medium).** SMTP login was sent in clear. Now `1`, `true`, `yes` all mean on.
+- **Claude call timeout 60s (low).** SDK default is 10 min, which could stall cron.
+- **6 new tests**, 3 extended, for gaps the reviewers showed: inactive alert retry, Slack lookalike URLs, one bad event not stopping the run, event text in prompt, bad RSS dates, read-only notification log.
+
+**Rejected:** user decisions (retry design, no market feed, GDACS), unlikely cases, new features (event updates, backoff, feed hardening).
+
+**Workflow notes**
+- Reviewers ran in background again, not blocking as the workflow wants.
+- Finalize step says commit. I committed locally, not pushed. Commit also holds earlier doc edits.
+
+Not checked: new tests not mutation-checked. Credit fix matches the text "credit balance", from web reports, not official docs. Escaping changes what Haiku sees; nothing ran against the real API.
+Risk: spec again recommends a follow-up review, because a high was patched.

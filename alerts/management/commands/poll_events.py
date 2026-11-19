@@ -47,7 +47,7 @@ class Command(BaseCommand):
             except Exception:
                 log.exception("Source %s failed", name)
 
-        alerts = list(Alert.objects.filter(active=True).prefetch_related("channels"))
+        alerts = list(Alert.objects.filter(active=True, user__is_active=True).prefetch_related("channels"))
         for event in Event.objects.filter(matched_at__isnull=True).order_by("occurred_at"):
             try:
                 self.process(event, alerts)
@@ -57,7 +57,7 @@ class Command(BaseCommand):
         # Retry sends that failed in earlier runs (not this one), up to MAX_ATTEMPTS in total.
         retry = Notification.objects.filter(
             status="failed", attempts__lt=MAX_ATTEMPTS, created_at__lt=run_started,
-            alert_channel__alert__active=True,
+            alert_channel__alert__active=True, alert_channel__alert__user__is_active=True,
         ).select_related("event", "alert_channel__alert")
         for n in retry:
             n.status, n.error = deliver(n.alert_channel, *message(n.alert_channel.alert, n.event))

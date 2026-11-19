@@ -143,6 +143,64 @@ Greenfield: project contains only BMAD tooling (`_bmad/`, `.claude/`, `_bmad-out
   - `[false]` `[reject]` IA-H immediate per-event delivery — user chose immediate.
   - `[false]` `[reject]` IA-I greenfield app — project was empty.
 
+### 2026-11-19 — Review pass (follow-up, diff = commit f798f17 app files, no baseline)
+- verdicts: 54 findings — high 2, medium 9, low 34, false 9, maybe-false 0
+- findings:
+  - `[medium]` `[patch]` BH alert/event text unescaped in prompt, a description can close its tag and steer other users' matches — verified in `matching.py`; `xml.sax.saxutils.escape` on description, title, summary, url + test (prompt escaped, no forged `<alert id="999">`).
+  - `[high]` `[patch]` BH any 400 marks the event matched and drops it, e.g. when API credit runs out — web reports agree the low-credit error is HTTP 400 `invalid_request_error` (not in official docs); a "credit balance" 400 now returns `None` (retry next run) + test. Other 400s stay permanent.
+  - `[low]` `[reject]` BH no fail-fast/circuit breaker, missing `ANTHROPIC_API_KEY` logs a traceback per event — the per-event `except` keeps the run going and a config error is loud; a breaker adds branches. Timeout bound patched separately.
+  - `[low]` `[reject]` BH crash between send and `Notification.create` resends — carried: only reachable with overlapping runs, which `flock` prevents.
+  - `[false]` `[reject]` BH retry thin (3 attempts, no backoff), no admin resend — user chose "auto-retry next runs, max 3" and declined the admin-resend option.
+  - `[low]` `[reject]` BH no recency cutoff, backlog delivered late — the CLAUDE_ERROR matrix row requires retry next run; a new alert cannot match events already marked matched; first-poll cost is documented.
+  - `[low]` `[reject]` BH event updates (USGS revisions, GDACS escalation) never re-evaluated — new feature; `get_or_create` idempotency is what DUPLICATE_FETCH requires.
+  - `[low]` `[reject]` BH one bad item kills the whole source — carried: USGS always sends id/time; unlikely.
+  - `[low]` `[reject]` BH feed XML unhardened, unbounded read, Atom yields nothing — feed URLs are fixed or admin-set, `defusedxml` would add a dependency the spec bans; Atom carried (RSS 2.0 only).
+  - `[low]` `[reject]` BH alert with no channels / duplicate channel rows — carried: user error only.
+  - `[low]` `[reject]` BH cron noise, `PATH`, exit code 0 when all sources fail — README/ops detail; spec says failures are logged, not raised.
+  - `[low]` `[reject]` BH manual-event admin form needs `source`/`external_id`, `matched_at` editable — works as specified (`test_manual_event`); defaults and read-only fields are new surface.
+  - `[low]` `[reject]` BH STATIC_ROOT, cookie flags, login rate limit, `EMAIL_USE_SSL` — carried: deployment out of scope.
+  - `[low]` `[reject]` BH Slack webhook shown in `__str__`, prefix-only check, redirects — only the owner and admins see it; revalidate/no-redirect opener is new surface. Lookalike-URL test added (see VG).
+  - `[low]` `[reject]` BH fixture year/weekday, `httpx2` undeclared, hard-coded model in test — cosmetic test data (`parsedate` ignores weekday); `httpx2` carried (test-only, via `anthropic`).
+  - `[false]` `[reject]` BH no `.gitignore`/`uv.lock`; migrations could merge — both files exist in the repo (the review diff only held app files); two migrations are harmless.
+  - `[high]` `[patch]` EC any 400 from Claude drops the event — same root cause as BH 400 finding; patched there.
+  - `[low]` `[reject]` EC `Alert.description` unbounded, huge alert gives prompt-too-large — users are admin-created; a prompt-sized alert is unrealistic.
+  - `[medium]` `[patch]` EC prompt text unescaped — same root cause as BH escaping finding; patched there.
+  - `[low]` `[reject]` EC `Notification.create` raises after a send — carried (overlapping runs only).
+  - `[low]` `[reject]` EC alert snapshot stale during slow runs — window is one run; an IntegrityError on a deleted channel is caught per event.
+  - `[medium]` `[patch]` EC deactivated users keep getting alerts — verified: queries ignored `user.is_active`; `user__is_active=True` added to the alert and retry queries + test.
+  - `[low]` `[reject]` EC retry loop has no per-notification try/except — `deliver()` catches send errors; only a DB error on save could raise; unlikely.
+  - `[low]` `[reject]` EC no age cutoff on backlog or retries — same as BH recency finding.
+  - `[false]` `[reject]` EC retries have no delay, 3 attempts burn in ~10 minutes — the user's chosen design (retry on following runs).
+  - `[low]` `[reject]` EC USGS feature missing id/time aborts the batch — carried (unlikely).
+  - `[low]` `[reject]` EC Atom/RDF feed ingests nothing without a warning — carried (RSS 2.0 only; the run logs "0 new events").
+  - `[low]` `[reject]` EC unbounded feed read — same as BH feed finding.
+  - `[low]` `[reject]` EC GDACS item without guid leaks an earthquake — GDACS items always carry a guid (live check: 214 items).
+  - `[low]` `[patch]` EC no client timeout, SDK default is 10 min (context7: `DEFAULT_TIMEOUT = 10 * 60`), a hung call stalls the poll under `flock` — `Anthropic(timeout=60.0)`.
+  - `[medium]` `[patch]` EC `EMAIL_USE_TLS=true` parsed as off, SMTP login sent in clear — verified (`== '1'`); now `1`/`true`/`yes`, README updated. Empty `EMAIL_PORT` crash rejected (loud at startup).
+  - `[low]` `[reject]` EC random `SECRET_KEY` breaks multi-worker sessions — README says set it in production; the random key fails safe, and raising would break the cron command when the env lacks it.
+  - `[low]` `[reject]` EC zero channels / duplicate channel+target — carried (user error only).
+  - `[low]` `[reject]` EC Slack check is prefix-only and follows redirects — same as BH Slack finding; the host is Slack's own.
+  - `[false]` `[reject]` EC claim that retries run every poll, skip same-run failures and inactive alerts — describes the intended behavior; no bad outcome.
+  - `[low]` `[patch]` VG retry skipping inactive alerts not pinned (mutation survived) — `test_inactive_alert_failed_send_not_retried`.
+  - `[medium]` `[patch]` VG Slack validator only tested with `http://` (loosened check survived) — `test_bad_slack_url_rejected` now loops over lookalikes (`hooks.slack.com.evil.example`, `@evil.example`, `https://evil.example`).
+  - `[medium]` `[patch]` VG per-event exception isolation untested — `test_unexpected_error_does_not_stop_run` (a `TypeError` on one event, the retry still runs).
+  - `[low]` `[patch]` VG event text in the Claude prompt never asserted — `test_prompt_has_event_and_escapes_untrusted_text`.
+  - `[low]` `[reject]` VG `MAILERS` SMTP branch untested — Django swaps in locmem during tests, so a test needs a settings reload; the TLS parse bug it could hide is fixed directly.
+  - `[medium]` `[patch]` VG RSS fallbacks (bad `pubDate`, no guid/link) untested — two items added to `test_rss`.
+  - `[low]` `[patch]` VG notification admin change/delete not asserted read-only — `test_notification_log_is_read_only` (POST to change and GET delete both 403).
+  - `[medium]` `[patch]` VG(other) prompt break-out — same root cause as BH escaping finding.
+  - `[false]` `[reject]` IA no automated market feed — user dropped Stooq (dead) and chose a manual market path.
+  - `[medium]` `[patch]` IA a 400 is treated as permanent, matrix says API errors retry — same root cause as the BH 400 finding; credit 400 now retries.
+  - `[false]` `[reject]` IA failed-send retries go beyond the matrix — user's round-4 decision.
+  - `[low]` `[reject]` IA Slack validation only in `clean()`, not on `save()`/send — same as BH Slack finding; admin and user forms both call `clean()`.
+  - `[low]` `[reject]` IA `pydantic`/`httpx2` beyond "no other deps" — carried: `pydantic` declared (needed by `parse`), `httpx2` test-only.
+  - `[false]` `[reject]` IA GDACS/USGS cutoffs act as a pre-filter — the spec bans a pre-filter in front of the matcher, not feed selection; the user chose GDACS and USGS covers earthquakes.
+  - `[false]` `[reject]` IA real refusals reach the `ValidationError` branch, so `stop_reason == "refusal"` is mock-only — both branches end the same (matched, no sends, warning) and both have tests.
+  - `[low]` `[reject]` IA unique constraint untested, send before insert — constraint is in the model and migration; `.exists()` guard is tested; the IntegrityError path needs overlapping runs.
+  - `[low]` `[reject]` IA MANUAL_EVENT tested through the ORM, not an admin POST — admin add page renders (tested) and the matcher path is identical.
+  - `[low]` `[reject]` IA new channel needs `makemigrations` (choices) — accepted in Design Notes; README says so.
+  - `[false]` `[reject]` IA additions beyond intent (GDACS, retry, escaping, auth URLs) — GDACS and retry are user decisions, escaping and newline collapse were review patches, auth URLs give login/logout.
+
 ## Design Notes
 
 Matcher golden example (SDK `anthropic`, structured output via Pydantic; check `stop_reason` before reading output):
@@ -188,3 +246,19 @@ Status: done
 **Verification:** `manage.py check` no issues; `makemigrations --check` no changes; `manage.py test alerts` 28/28 OK. Live fetch (outside tests): GDACS 214 non-quake items, USGS 14, BBC 33.
 
 **Residual risks:** matcher prompt quality never tried against real Claude; first poll ingests ~250 events (≈250 Haiku calls, once); SMTP path untested against a real server; no market feed (admin-only market events).
+
+### Follow-up review pass (2026-11-19)
+
+Status: done
+
+**Summary:** Second independent review of the whole app (4 layers). Patched 16 rows from 6 root causes plus 6 test gaps; rejected 38.
+
+**Files changed:** `alerts/matching.py` (escape untrusted prompt text, `timeout=60.0`, credit-balance 400 retries); `alerts/management/commands/poll_events.py` (skip inactive users in matching and retry); `config/settings.py` + `README.md` (`EMAIL_USE_TLS` accepts `1`/`true`/`yes`); `alerts/tests.py` (28 to 34 tests, plus extended RSS, Slack and admin checks).
+
+**Review:** 54 findings: high 2, medium 9, low 34, false 9. Patched entries by verdict: high 1 (credit-out 400 dropped events), medium 6 (prompt escaping, inactive users, TLS parse, Slack lookalike test, isolation test, RSS fallback test), low 4. Deferred: none. Rejected: see triage log.
+
+**Follow-up review recommended: true** — a `high` was patched. Unverified risk: the credit-out fix matches the text "credit balance" in the 400 message (web reports only, not official docs), and the new XML escaping changes what Haiku sees; neither has run against the real API.
+
+**Verification:** `manage.py check` no issues; `makemigrations --check` no changes; `manage.py test alerts` 34/34 OK. New tests were not mutation-checked.
+
+**Residual risks:** as above, plus the first-run Haiku cost, SMTP untested against a real server, and no market feed.

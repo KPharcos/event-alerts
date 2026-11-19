@@ -1,4 +1,5 @@
 import logging
+from xml.sax.saxutils import escape
 
 import anthropic
 import pydantic
@@ -21,14 +22,15 @@ class MatchResult(BaseModel):
 def match_event(event, alerts):
     """Return ids of `alerts` that `event` satisfies, or None if matching should be retried later."""
     # shortcut: all active alerts in one prompt, batch when alerts exceed a few hundred
-    alert_lines = "\n".join(f'<alert id="{a.id}">{a.description}</alert>' for a in alerts)
+    alert_lines = "\n".join(f'<alert id="{a.id}">{escape(a.description)}</alert>' for a in alerts)
+    # escape() so untrusted text can't close its tag and forge other alerts or instructions
     content = (
-        f"<event>\nCategory: {event.category}\nTitle: {event.title}\n"
-        f"Summary: {event.summary}\nURL: {event.url}\nOccurred: {event.occurred_at.isoformat()}\n</event>\n"
+        f"<event>\nCategory: {event.category}\nTitle: {escape(event.title)}\n"
+        f"Summary: {escape(event.summary)}\nURL: {escape(event.url)}\nOccurred: {event.occurred_at.isoformat()}\n</event>\n"
         f"<alerts>\n{alert_lines}\n</alerts>"
     )
     try:
-        resp = anthropic.Anthropic().messages.parse(
+        resp = anthropic.Anthropic(timeout=60.0).messages.parse(
             model=settings.ALERT_MATCH_MODEL,
             max_tokens=1024,
             system=SYSTEM,
@@ -36,6 +38,9 @@ def match_event(event, alerts):
             output_format=MatchResult,
         )
     except anthropic.BadRequestError as e:
+        if "credit balance" in str(e).lower():  # an account problem, not this event's: keep it for the next run
+            log.error("Matching failed for event %s (no API credit), will retry: %s", event.pk, e)
+            return None
         log.error("Matching rejected for event %s, not retrying: %s", event.pk, e)
         return []  # permanent (e.g. prompt too large): retrying would fail and bill forever
     except anthropic.APIError as e:
