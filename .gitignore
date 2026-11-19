@@ -8,3 +8,5 @@ db.sqlite3
 _bmad/
 .claude/
 staticfiles/
+# review-report output
+reports/review/

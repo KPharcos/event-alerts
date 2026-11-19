@@ -169,3 +169,11 @@ Fix those!
 ## 2026-11-19 — 13
 
 /bmad-build-auto _bmad-output/implementation-artifacts/spec-world-event-alerts.md
+
+## 2026-11-19 — 14
+
+/review-report the whole project
+
+## 2026-11-19 — 15
+
+Commit both!

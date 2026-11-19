@@ -256,3 +256,48 @@ Skipped: secure cookies / HSTS (would break plain-HTTP dev); not checked against
 ### Follow-up prompt (13)
 
 /bmad-build-auto _bmad-output/implementation-artifacts/spec-world-event-alerts.md
+
+---
+
+## 2026-11-19 — after prompt 13 (bmad-build-auto: follow-up review pass 4)
+
+### Response
+
+Pass 4 done. Spec `done`, follow-up review **not** recommended anymore (no high found) — review converged. 53 tests pass (was 46). Committed local `282839f`, not pushed. Commit also holds your prompt-12 fixes + map + CLAUDE.md.
+
+41 findings: high 0, medium 14, low 20, false 7. Patched 18 rows, rejected 23.
+
+Fixed:
+- Admin could delete alert's only channel (Django admin sets `min_num` but not `validate_min`). Now blocked.
+- Admin event with source other than exact `manual` + old date got silently dropped. Now only feed sources age out; any admin source matches.
+- Always-failing event at head of queue blocked fresh news every run. Now newest first + feed summaries capped 2000 chars (likely 400 cause).
+- Feed HTML stripped from summaries.
+- Paused alert turned back on days later no longer re-sends stale failed notifications (retries last 24 h only).
+- Old events aged out now log a count.
+- Tests: `_opener` really has no-redirect handler, breaker resets after success, SMTP settings from env, + the above.
+
+Rejected mostly carried calls: random SECRET_KEY fallback, secure cookies/HSTS (break plain HTTP), USGS bad feature, event updates, duplicate channel rows.
+
+Skipped: nothing run against real Claude/SMTP/Slack. Risk: a permanently rejected admin event costs 1 Claude call per run forever (no attempt cap; needs migration).
+
+### Follow-up prompt (14)
+
+/review-report the whole project
+
+---
+
+## 2026-11-19 — after prompt 14 (review-report: whole project)
+
+### Response
+
+Report done: `reports/review/2026-11-19-world-event-alerts-the-whole-project/index.html` (open in browser). 6 chapters following one poll run → feeds → Claude matching → delivery → user pages → admin. 1401 of 1401 changed code lines shown (100%); README, docs, BMAD spec, migrations, Django boilerplate excluded with reasons.
+
+Reader pass, 2 rounds: 15 questions answered as notes, 2 left open (no feed size cap / stdlib XML parser; GDACS fixture weekday).
+
+Reader pass found a real bug: admin "add alert" had no user field (`AlertForm.Meta.fields` dropped it when admin reused the form in prompt 12) → saving crashed on NOT NULL. Fixed: `AlertAdmin.fields` includes `user`; new admin-add test. 54 tests pass. Fix is uncommitted; the report covers HEAD and says so in the admin note.
+
+Skipped: did not commit. Renderer added `reports/review/` to `.gitignore` (uncommitted too). Risk: report is a snapshot of HEAD, misses the admin fix diff.
+
+### Follow-up prompt (15)
+
+Commit both!

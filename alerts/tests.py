@@ -611,6 +611,19 @@ class AdminTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(AlertChannel.objects.filter(pk=ch.pk).exists())
 
+    def test_admin_can_add_an_alert_for_a_user(self):
+        root = User.objects.create_superuser("root", "root@example.com", "pw-123456")
+        alice = User.objects.create_user("alice", password="pw-123456")
+        self.client.force_login(root)
+        resp = self.client.post("/admin/alerts/alert/add/", {
+            "user": alice.pk, "name": "A", "description": "d", "active": "on",
+            "channels-TOTAL_FORMS": "1", "channels-INITIAL_FORMS": "0",
+            "channels-MIN_NUM_FORMS": "1", "channels-MAX_NUM_FORMS": "1000",
+            "channels-0-channel": "email", "channels-0-target": "a@example.com",
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(Alert.objects.get().user, alice)
+
     def test_admin_alert_needs_channel_and_caps_description(self):
         root = User.objects.create_superuser("root", "root@example.com", "pw-123456")
         self.client.force_login(root)

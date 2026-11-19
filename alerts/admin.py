@@ -26,6 +26,7 @@ class AlertChannelInline(admin.TabularInline):
 @admin.register(Alert)
 class AlertAdmin(admin.ModelAdmin):
     form = AlertForm  # same 2000-char description cap as the user form
+    fields = ["user", "name", "description", "active"]  # AlertForm's Meta.fields would otherwise drop user
     list_display = ["name", "user", "active"]
     list_select_related = ["user"]
     list_filter = ["active"]
