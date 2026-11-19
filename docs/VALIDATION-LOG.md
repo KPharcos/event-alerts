@@ -397,3 +397,29 @@ Done and committed locally (not pushed).
   - The notifications were staged with matching alerts (Chile quake, Australian fire, Brent oil); Claude was not called, and the README says so.
 
 Skipped: no live Claude/SMTP/Slack. Risk: user pages are plain unstyled HTML, which the screenshots show as-is; GitHub is now 5 commits behind.
+
+### Follow-up prompt (20)
+
+Extend README with more info based on docs! Add MIT license to the repo! Log before commit this time! Last thing, push everything!
+
+---
+
+## 2026-11-19 — after prompt 20 (README, MIT license, push)
+
+### Response
+
+Done. README extended, MIT license added, everything committed and pushed to https://github.com/KPharcos/event-alerts. This log entry was written before the commit, so the tree is clean.
+
+- **README** (from PLAN, DECISIONS, CODEBASE_MAP, spec), new sections:
+  - How it works (mermaid diagram plus the 5 steps)
+  - Features
+  - Status (54 tests, 4 review passes, never run against real Claude/SMTP/Slack)
+  - Security notes
+  - Known limits
+  - Project docs (index of every doc and the review report)
+  - How this was built (BMAD + Claude Code)
+  - License
+- **LICENSE:** MIT, `Copyright (c) 2026 KPharcos`. I used your GitHub handle, not your real name; change it if you want. `pyproject.toml` declares `license = "MIT"`, and `uv lock --check` still passes.
+- **Push:** `main` was 5 commits behind GitHub; now 6 commits are pushed (5 + this one).
+
+Skipped: did not re-run screenshots or the report (no code change). Risk: GitHub shows the review report as raw HTML; download it to view it.

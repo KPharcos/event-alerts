@@ -193,3 +193,7 @@ Do not ignore reports/review/, it will be commited!
 ## 2026-11-19 — 19
 
 Yes, and make some screenshots about the running app!
+
+## 2026-11-19 — 20
+
+Extend README with more info based on docs! Add MIT license to the repo! Log before commit this time! Last thing, push everything!

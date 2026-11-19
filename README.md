@@ -5,6 +5,55 @@ A cron job pulls events from free public feeds, Claude Haiku decides which alert
 new event matches, and matches are delivered by email and/or Slack. Admins manage
 users, alerts, events and the notification log in Django admin.
 
+Built with Django 6.1, SQLite and the Anthropic Python SDK, managed with `uv`. MIT licensed.
+
+## How it works
+
+```mermaid
+flowchart LR
+  Cron[cron, every 5 min] --> Poll[poll_events]
+  Poll --> Src[Feeds: USGS, BBC RSS, GDACS]
+  Src --> Ev[(Event)]
+  Poll --> Win{feed event older than 24 h?}
+  Win -->|yes| Done[marked done, nothing sent]
+  Win -->|no| Match[Claude Haiku: which alerts match?]
+  Match --> Ch[Channels: email, Slack]
+  Ch --> Notif[(Notification log)]
+  Poll --> Retry[retry failed sends, max 3]
+  Retry --> Ch
+  Users[User pages] --> Al[(Alerts + channels)]
+  Admin[Django admin] --> Al
+  Admin --> Ev
+  Al --> Match
+```
+
+1. **Ingest.** Each source returns events; they are stored once per (source, external id).
+2. **Window.** Feed events older than 24 hours are marked done without a Claude call, so a first
+   deploy or an outage doesn't send old news. Events an admin adds always match.
+3. **Match.** One Claude Haiku call per new event, with every active alert in the prompt and
+   structured output (`alert_ids`). Ids outside the active set are ignored.
+4. **Deliver.** Each matched alert's channels get a message; every send is logged as a
+   `Notification` (`sent` or `failed`). The same alert channel never gets the same event twice.
+5. **Retry.** Failed sends are retried on the next runs, up to 3 attempts.
+
+## Features
+
+- Free-text alerts: write what you care about, Claude decides what matches.
+- Email (SMTP) and Slack incoming webhooks; more channels plug into one registry.
+- Free public feeds, no API keys besides Claude: USGS earthquakes (M4.5+), BBC World news, GDACS
+  floods, cyclones, volcanoes, droughts and wildfires. Market events are added by hand.
+- Users manage only their own alerts; admins create users and see everything, including a
+  read-only notification log with status, attempts and errors.
+- Failure isolation: one dead feed, a failing channel or a Claude outage never stops the run.
+
+## Status
+
+- Feature-complete for the original request, reviewed in four BMAD review passes plus a
+  whole-project review report (see [Project docs](#project-docs)).
+- 54 tests, all network mocked; `manage.py check` and `makemigrations --check` clean.
+- **Not yet run against the real Claude API, an SMTP server or Slack.** The screenshots below use
+  real feed events but staged notifications.
+
 ## Setup
 
 ```sh
@@ -114,3 +163,53 @@ uv run python manage.py test alerts
 ```
 
 All network access (Claude, feeds, Slack) is mocked.
+
+## Security notes
+
+- Feed text and alert descriptions are untrusted: the prompt says so and both are XML-escaped,
+  so one user's alert can't forge another's.
+- Slack targets must start with `https://hooks.slack.com/`. This is checked when the alert is
+  saved and again before every send, and redirects are refused, so the server can't be made to
+  POST elsewhere.
+- Slack text escapes `& < >`, so feed text can't ping `@channel` or disguise links. Email
+  subjects have newlines removed.
+- Alert descriptions are capped at 2000 characters; feed summaries are stripped of HTML and capped.
+- Without `DJANGO_SECRET_KEY` a random key is used (never a public default). Set it in production.
+- Not set by default: secure cookies, HSTS and HTTPS redirect (they break plain-HTTP setups); a
+  feed size cap and `defusedxml` (the feeds are fixed, well-known publishers).
+
+## Known limits
+
+- All active alerts go into one prompt; batch them beyond a few hundred alerts.
+- A crash between sending and recording a notification can send it again on the next run.
+- An admin event that Claude always rejects costs one failed call per run.
+- Updates to known events (a GDACS alert escalating, a USGS magnitude revision) are not re-checked.
+- The same target can be added twice to one alert and then gets two messages.
+- The user pages are plain, unstyled HTML.
+
+## Project docs
+
+| Doc | What it holds |
+|-----|---------------|
+| [docs/PLAN.md](docs/PLAN.md) | Goal, scope, work items, acceptance criteria, edge-case matrix with tests, open items |
+| [docs/DECISIONS.md](docs/DECISIONS.md) | Every decision: options offered, choice, who decided, superseded and rejected ones |
+| [docs/CODEBASE_MAP.md](docs/CODEBASE_MAP.md) | Architecture, file-by-file guide, data flow, gotchas, where to change what |
+| [reports/review/](reports/review/2026-11-19-world-event-alerts-the-whole-project/index.html) | Whole-project review report (download and open `index.html` in a browser) |
+| [Spec](_bmad-output/implementation-artifacts/spec-world-event-alerts.md) | BMAD spec: intent, constraints, change log, all review triage logs |
+| [docs/PROMPTS.md](docs/PROMPTS.md) | Every prompt, question and answer, and model change during the build |
+| [docs/VALIDATION-LOG.md](docs/VALIDATION-LOG.md) | Claude's reports worth checking, each with the prompt that followed |
+
+## How this was built
+
+The app was built with Claude Code and the [BMAD Method](https://github.com/bmad-code-org/BMAD-METHOD)
+(`bmad-build-auto`):
+- A spec was written from the request, with product questions asked interactively.
+- An implementation subagent built the app, then four parallel reviewers checked it (blind hunter,
+  edge-case hunter, verification gap, intent alignment) and the findings were triaged and patched.
+- This ran for four review passes, until a pass found nothing high-severity.
+
+The BMAD framework itself (`_bmad/`, `.claude/`) is not committed. Install it with `npx bmad-method install`.
+
+## License
+
+[MIT](LICENSE) © 2026 KPharcos
