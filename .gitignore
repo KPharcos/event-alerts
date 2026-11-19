@@ -7,3 +7,4 @@ db.sqlite3
 # BMAD framework install (re-create with: npx bmad-method install)
 _bmad/
 .claude/
+staticfiles/

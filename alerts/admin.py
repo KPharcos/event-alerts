@@ -1,5 +1,6 @@
 from django.contrib import admin
 
+from .forms import AlertForm, BaseChannelFormSet
 from .models import Alert, AlertChannel, Event, Notification
 
 
@@ -14,11 +15,17 @@ class EventAdmin(admin.ModelAdmin):
 
 class AlertChannelInline(admin.TabularInline):
     model = AlertChannel
-    extra = 1
+    formset = BaseChannelFormSet
+    extra = 0
+    min_num = 1
+
+    def get_formset(self, request, obj=None, **kwargs):
+        return super().get_formset(request, obj, validate_min=True, **kwargs)  # admin sets min_num only
 
 
 @admin.register(Alert)
 class AlertAdmin(admin.ModelAdmin):
+    form = AlertForm  # same 2000-char description cap as the user form
     list_display = ["name", "user", "active"]
     list_select_related = ["user"]
     list_filter = ["active"]

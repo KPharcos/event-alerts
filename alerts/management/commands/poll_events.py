@@ -53,12 +53,15 @@ class Command(BaseCommand):
 
         alerts = list(Alert.objects.filter(active=True, user__is_active=True).prefetch_related("channels"))
         # Old feed events are marked done without a Claude call or a notification, so a first deploy
-        # or an outage doesn't send old news. Admin-added events always match, whatever their date.
-        Event.objects.filter(matched_at__isnull=True, occurred_at__lt=cutoff).exclude(source="manual").update(
+        # or an outage doesn't send old news. Events from any other source (added in admin) always match.
+        aged = Event.objects.filter(matched_at__isnull=True, occurred_at__lt=cutoff, source__in=list(SOURCES)).update(
             matched_at=run_started
         )
+        if aged:
+            log.warning("%d feed events older than %s marked done without matching", aged, MATCH_WINDOW)
         failures = 0
-        for event in Event.objects.filter(matched_at__isnull=True).order_by("occurred_at"):
+        # Newest first: an event that always fails sinks to the back instead of blocking fresh news.
+        for event in Event.objects.filter(matched_at__isnull=True).order_by("-occurred_at"):
             if failures >= MAX_MATCH_FAILURES:
                 log.error("Matching failed %d times in a row; the rest waits for the next run", failures)
                 break
@@ -71,6 +74,7 @@ class Command(BaseCommand):
         # Retry sends that failed in earlier runs (not this one), up to MAX_ATTEMPTS in total.
         retry = Notification.objects.filter(
             status="failed", attempts__lt=MAX_ATTEMPTS, created_at__lt=run_started,
+            created_at__gte=run_started - MATCH_WINDOW,  # a paused alert turned back on later gets no stale news
             alert_channel__alert__active=True, alert_channel__alert__user__is_active=True,
         ).select_related("event", "alert_channel__alert")
         for n in retry:

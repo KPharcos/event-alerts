@@ -14,6 +14,9 @@ uv run python manage.py createsuperuser
 uv run python manage.py runserver
 ```
 
+In production (`DJANGO_DEBUG` off) run `uv run python manage.py collectstatic` and serve
+`staticfiles/` at `/static/`, or the admin has no styling.
+
 - Admin: `/admin/` — create users here (there is no public sign-up), plus alerts, channels, manual events, and the notification log.
 - Users: log in at `/accounts/login/` to manage their own alerts.
 
@@ -24,6 +27,7 @@ uv run python manage.py runserver
 | `DJANGO_SECRET_KEY` | Django secret key. **Set it in production**; without it a random key is used and sessions reset on every restart | random per process |
 | `DJANGO_DEBUG` | `1` enables debug | off |
 | `DJANGO_ALLOWED_HOSTS` | Comma-separated hosts | `localhost,127.0.0.1` |
+| `DJANGO_CSRF_TRUSTED_ORIGINS` | Comma-separated origins, e.g. `https://alerts.example.com`. Needed behind an HTTPS proxy, or logins and forms fail the CSRF check | empty |
 | `EMAIL_HOST` | SMTP host; when unset, emails are printed to the console | unset |
 | `EMAIL_PORT` | SMTP port | `587` |
 | `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD` | SMTP credentials | empty |
@@ -41,7 +45,7 @@ Feed and matching settings live in `config/settings.py`: `EVENT_RSS_FEEDS`, `ALE
   GDACS earthquakes are skipped because USGS already covers them.
 
 There is no market feed. Market events (category `market`) are added by hand in admin
-(`/admin/alerts/event/add/`). Use source `manual` and an external id that is unique for that source. Manual events are matched and delivered on the next poll run, whatever their date.
+(`/admin/alerts/event/add/`). Use any source name that isn't a feed key (e.g. `manual`) and an external id that is unique for that source. Admin-added events are matched and delivered on the next poll run, whatever their date.
 
 ## Polling
 
@@ -66,7 +70,7 @@ stops matching and the rest waits for the next run. A failing source or channel 
 does not stop the run.
 
 Failed sends are retried automatically: each run re-sends every `failed` notification from an
-earlier run, up to 3 attempts in total (`attempts` column in the admin notification log).
+earlier run in the last 24 hours, up to 3 attempts in total (`attempts` column in the admin notification log).
 After the third failure it stays `failed`.
 
 The first run after setup stores everything currently in the feeds. Only the recent events get a

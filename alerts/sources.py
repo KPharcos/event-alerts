@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 
 from django.conf import settings
+from django.utils.html import strip_tags
 from django.utils import timezone
 
 log = logging.getLogger(__name__)
@@ -45,7 +46,7 @@ def _rss_items(url, category):
             "external_id": ext_id[:500],
             "category": category,
             "title": (item.findtext("title") or ext_id).strip()[:500],
-            "summary": (item.findtext("description") or "").strip(),
+            "summary": strip_tags(item.findtext("description") or "").strip()[:2000],
             "url": link[:1000],
             "occurred_at": occurred,
         })

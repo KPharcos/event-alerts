@@ -1,5 +1,5 @@
 from django import forms
-from django.forms import inlineformset_factory
+from django.forms import BaseInlineFormSet, inlineformset_factory
 
 from .models import Alert, AlertChannel
 
@@ -18,6 +18,11 @@ class AlertForm(forms.ModelForm):
         fields = ["name", "description", "active"]
 
 
+class BaseChannelFormSet(BaseInlineFormSet):
+    default_error_messages = {"too_few_forms": "Add at least one channel, or the alert can never notify you."}
+
+
 ChannelFormSet = inlineformset_factory(
-    Alert, AlertChannel, fields=["channel", "target"], extra=2, can_delete=True
+    Alert, AlertChannel, formset=BaseChannelFormSet, fields=["channel", "target"],
+    extra=1, min_num=1, validate_min=True, can_delete=True,
 )

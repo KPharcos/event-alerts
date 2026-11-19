@@ -32,13 +32,22 @@ def slack_escape(text):
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *args, **kwargs):
+        return None  # a webhook never redirects; following one would leave hooks.slack.com
+
+
+_opener = urllib.request.build_opener(_NoRedirect)
+
+
 def send_slack(target, subject, body):
+    validate_slack(target)  # rows written outside forms skip clean(), so check again before posting
     req = urllib.request.Request(
         target,
         data=json.dumps({"text": f"*{slack_escape(subject)}*\n{slack_escape(body)}"}).encode(),
         headers={"Content-Type": "application/json"},
     )
-    with urllib.request.urlopen(req, timeout=10):
+    with _opener.open(req, timeout=10):
         pass
 
 

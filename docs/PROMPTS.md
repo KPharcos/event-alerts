@@ -142,3 +142,30 @@ Always log the model and effort changes into docs/PROMPTS.md
 - **✔ Last 24 hours only (Recommended)** — Events older than 24 h are marked done without sending. Fixes the first-deploy flood, outage backlogs and new alerts matching old news.
 - Send everything unmatched (current) — Keeps today's behavior: first deploy sends matches for the whole backlog at once; alerts match any old unmatched event.
 - Only events after the alert was saved — Each alert ignores events that happened before it existed. Needs a per-alert time check, so more code.
+
+## 2026-11-19 — 11
+
+/model (run directly in Claude Code, not sent to Claude) — output: "Set model to `Opus 5.5` and saved as your default for new sessions with `high` effort"
+
+/cartographer
+
+### Settings changes
+
+- **Model:** Haiku 5.5 (`claude-haiku-5-5`) → **Opus 5.5** (`claude-opus-5-5`). Saved as default for new sessions.
+- **Effort:** max (session only) → **high**, saved as default for new sessions.
+
+## 2026-11-19 — 12
+
+Fix those!
+
+### Questions — round 1 (what to fix)
+
+**"Fix those" could mean several open items from the map and the review. Which should I fix?** (multi-select)
+- **✔ Spec drift (Recommended)** — Update the spec to match the code: cron lock path ~/poll_events.lock, and failed sends retry every run regardless of matching. Docs only, no code change.
+- **✔ Slack + admin gotchas** — send_slack rechecks the hooks.slack.com prefix and refuses redirects (ORM writes can't bypass the SSRF guard); admin also caps alert descriptions at 2000 chars.
+- **✔ Zero-channel alerts** — Alert form requires at least one channel, so an alert can't silently never notify. Overrides the earlier carried 'user error' reject.
+- **✔ Deployment hardening** — DJANGO_CSRF_TRUSTED_ORIGINS env var (forms work behind an HTTPS proxy) and STATIC_ROOT + collectstatic in README (styled admin with DEBUG off).
+
+## 2026-11-19 — 13
+
+/bmad-build-auto _bmad-output/implementation-artifacts/spec-world-event-alerts.md

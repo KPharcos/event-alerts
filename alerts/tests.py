@@ -2,6 +2,7 @@ import importlib
 import json
 import os
 import urllib.error
+import urllib.request
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -11,13 +12,14 @@ import httpx2
 import pydantic
 from django.contrib.auth.models import User
 from django.core import mail
+from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.db import IntegrityError, transaction
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from . import sources
+from . import channels, sources
 from .channels import send_slack
 from .matching import MatchResult
 from .models import Alert, AlertChannel, Event, Notification
@@ -57,7 +59,7 @@ class PollTestBase(TestCase):
         self.alert = Alert.objects.create(user=self.user, name="Japan quake", description="big quake hits Japan")
         self.email = AlertChannel.objects.create(alert=self.alert, channel="email", target="alice@example.com")
         self.slack = AlertChannel.objects.create(alert=self.alert, channel="slack", target=SLACK_URL)
-        self.urlopen = patch("alerts.channels.urllib.request.urlopen").start()
+        self.urlopen = patch("alerts.channels._opener.open").start()
         self.addCleanup(patch.stopall)
 
     def poll(self, sources_map=None):
@@ -324,6 +326,30 @@ class PollTests(PollTestBase):
         self.assertIsNotNone(old.matched_at)
         self.assertEqual(Notification.objects.filter(event=old).count(), 2)
 
+    def test_failure_count_resets_after_a_success(self):
+        events = [dict(quake(f"us{i}"), occurred_at=timezone.now() - timedelta(minutes=i + 1)) for i in range(6)]
+        err = anthropic.APIConnectionError(request=httpx2.Request("POST", "https://api.anthropic.com/v1/messages"))
+        ok = SimpleNamespace(stop_reason="end_turn", parsed_output=MatchResult(alert_ids=[]))
+        p, client = claude_raising([err, err, ok, err, err, ok])
+        with p:
+            self.poll({"usgs": lambda: events})
+        self.assertEqual(client.messages.parse.call_count, 6)
+
+    def test_old_admin_event_with_any_source_still_matched(self):
+        fields = {k: v for k, v in quake().items() if k != "external_id"} | {"occurred_at": timezone.now() - timedelta(days=3)}
+        old = Event.objects.create(source="Market desk", external_id="m1", **fields)
+        p, _ = claude_returning([self.alert.id])
+        with p:
+            self.poll()
+        self.assertEqual(Notification.objects.filter(event=old).count(), 2)
+
+    def test_stale_failed_send_not_retried(self):
+        event = Event.objects.create(source="manual", external_id="1", **{k: v for k, v in quake().items() if k != "external_id"} | {"matched_at": timezone.now()})
+        n = Notification.objects.create(alert_channel=self.slack, event=event, status="failed")
+        Notification.objects.filter(pk=n.pk).update(created_at=timezone.now() - timedelta(days=2))
+        self.poll({})
+        self.urlopen.assert_not_called()
+
     def test_refusal(self):
         p, _ = claude_returning([self.alert.id], stop_reason="refusal")
         with p:
@@ -372,7 +398,7 @@ class SourceParsingTests(TestCase):
     @override_settings(EVENT_RSS_FEEDS=["https://bad", "https://feed"])
     def test_rss(self):
         body = b"""<rss><channel>
-          <item><title>A</title><link>https://a</link><guid>g1</guid><pubDate>Wed, 19 Nov 2026 08:00:00 GMT</pubDate></item>
+          <item><title>A</title><link>https://a</link><guid>g1</guid><pubDate>Thu, 19 Nov 2026 08:00:00 GMT</pubDate></item>
           <item><title>B</title><link>https://b</link></item>
           <item><title>C</title><link>https://c</link><guid>  </guid><pubDate>Thu, 19 Nov 2026 08:00:00 -0000</pubDate></item>
           <item><title>D</title><guid>g4</guid><pubDate>not a date</pubDate></item>
@@ -389,10 +415,19 @@ class SourceParsingTests(TestCase):
         self.assertEqual([e["external_id"] for e in events], ["g1", "https://b", "https://c", "g4"])
         self.assertEqual(events[0]["category"], "news")
         self.assertEqual((events[0]["summary"], events[0]["url"]), ("", "https://a"))
+
         self.assertEqual(events[0]["occurred_at"], datetime(2026, 11, 19, 8, 0, tzinfo=UTC))
         self.assertEqual(events[2]["occurred_at"], datetime(2026, 11, 19, 8, 0, tzinfo=UTC))
         self.assertIsNotNone(events[2]["occurred_at"].tzinfo)
         self.assertIsNotNone(events[3]["occurred_at"].tzinfo)  # unparseable pubDate falls back to now
+
+    def test_rss_summary_is_plain_text_and_capped(self):
+        body = ("<rss><channel><item><guid>g</guid><description>&lt;p&gt;Big &lt;b&gt;flood&lt;/b&gt;&lt;/p&gt;"
+                + "x" * 3000 + "</description></item></channel></rss>").encode()
+        with patch("alerts.sources._get", return_value=body):
+            [e] = sources._rss_items("https://feed", "news")
+        self.assertTrue(e["summary"].startswith("Big flood"))
+        self.assertEqual(len(e["summary"]), 2000)
 
     def test_gdacs_skips_earthquakes(self):
         body = """\ufeff<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel>
@@ -410,7 +445,7 @@ class SourceParsingTests(TestCase):
 
 class SlackTests(TestCase):
     def test_slack_text_escaped(self):
-        with patch("alerts.channels.urllib.request.urlopen") as urlopen:
+        with patch("alerts.channels._opener.open") as urlopen:
             send_slack(SLACK_URL, "<!channel> & co", "see <http://evil|bank>")
         text = json.loads(urlopen.call_args.args[0].data)["text"]
         self.assertEqual(text, "*&lt;!channel&gt; &amp; co*\nsee &lt;http://evil|bank&gt;")
@@ -454,16 +489,24 @@ class AlertViewTests(TestCase):
         self.client.force_login(self.user)
         resp = self.client.post(reverse("alert_update", args=[alert.pk]), {
             "name": "New", "description": "x", "active": "on",
-            "channels-TOTAL_FORMS": "1", "channels-INITIAL_FORMS": "1",
-            "channels-MIN_NUM_FORMS": "0", "channels-MAX_NUM_FORMS": "1000",
+            "channels-TOTAL_FORMS": "2", "channels-INITIAL_FORMS": "1",
+            "channels-MIN_NUM_FORMS": "1", "channels-MAX_NUM_FORMS": "1000",
             "channels-0-id": str(ch.pk), "channels-0-channel": "email",
             "channels-0-target": "alice@example.com", "channels-0-DELETE": "on",
+            "channels-1-channel": "slack", "channels-1-target": SLACK_URL,
         })
         self.assertRedirects(resp, reverse("alert_list"))
         alert.refresh_from_db()
         self.assertEqual(alert.name, "New")
         self.assertEqual(Alert.objects.filter(user=self.user).count(), 1)
-        self.assertFalse(alert.channels.exists())
+        self.assertEqual(list(alert.channels.values_list("channel", flat=True)), ["slack"])
+
+    def test_alert_needs_a_channel(self):
+        self.client.force_login(self.user)
+        data = self.form_data() | {"channels-0-target": "", "channels-1-target": "", "channels-0-channel": "", "channels-1-channel": ""}
+        resp = self.client.post(reverse("alert_create"), data)
+        self.assertContains(resp, "Add at least one channel")
+        self.assertFalse(Alert.objects.filter(user=self.user).exists())
 
     def test_bad_slack_url_rejected(self):
         self.client.force_login(self.user)
@@ -510,6 +553,21 @@ class AlertViewTests(TestCase):
         self.assertRedirects(resp, f"{reverse('login')}?next=/")
 
 
+class SlackGuardTests(TestCase):
+    def test_send_rechecks_target(self):
+        with patch("alerts.channels._opener.open") as open_, self.assertRaises(ValidationError):
+            send_slack("https://evil.example/x", "s", "b")
+        open_.assert_not_called()
+
+    def test_opener_uses_no_redirect_handler(self):
+        self.assertTrue(any(isinstance(h, channels._NoRedirect) for h in channels._opener.handlers))
+
+    def test_redirect_not_followed(self):
+        handler = channels._NoRedirect()
+        req = urllib.request.Request(SLACK_URL)
+        self.assertIsNone(handler.redirect_request(req, None, 302, "Found", {}, "https://evil.example/x"))
+
+
 class SettingsTests(SimpleTestCase):
     def test_console_email_and_debug_off_without_env(self):
         name = "config.settings"
@@ -521,8 +579,52 @@ class SettingsTests(SimpleTestCase):
         finally:
             importlib.reload(importlib.import_module(name))
 
+    def test_smtp_settings_from_env(self):
+        name = "config.settings"
+        env = {"EMAIL_HOST": "smtp.example.com", "EMAIL_PORT": "2525", "EMAIL_USE_TLS": "false"}
+        try:
+            with patch.dict(os.environ, env, clear=True):
+                mod = importlib.reload(importlib.import_module(name))
+            mailer = mod.MAILERS["default"]
+            self.assertEqual(mailer["BACKEND"], "django.core.mail.backends.smtp.EmailBackend")
+            self.assertEqual(
+                {k: mailer["OPTIONS"][k] for k in ("host", "port", "use_tls", "timeout")},
+                {"host": "smtp.example.com", "port": 2525, "use_tls": False, "timeout": 10},
+            )
+        finally:
+            importlib.reload(importlib.import_module(name))
+
 
 class AdminTests(TestCase):
+    def test_admin_cannot_delete_the_only_channel(self):
+        root = User.objects.create_superuser("root", "root@example.com", "pw-123456")
+        alert = Alert.objects.create(user=root, name="A", description="d")
+        ch = AlertChannel.objects.create(alert=alert, channel="email", target="a@example.com")
+        self.client.force_login(root)
+        resp = self.client.post(f"/admin/alerts/alert/{alert.pk}/change/", {
+            "user": root.pk, "name": "A", "description": "d", "active": "on",
+            "channels-TOTAL_FORMS": "1", "channels-INITIAL_FORMS": "1",
+            "channels-MIN_NUM_FORMS": "1", "channels-MAX_NUM_FORMS": "1000",
+            "channels-0-id": ch.pk, "channels-0-alert": alert.pk, "channels-0-channel": "email",
+            "channels-0-target": "a@example.com", "channels-0-DELETE": "on",
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(AlertChannel.objects.filter(pk=ch.pk).exists())
+
+    def test_admin_alert_needs_channel_and_caps_description(self):
+        root = User.objects.create_superuser("root", "root@example.com", "pw-123456")
+        self.client.force_login(root)
+        resp = self.client.post("/admin/alerts/alert/add/", {
+            "user": root.pk, "name": "A", "description": "x" * 2001, "active": "on",
+            "channels-TOTAL_FORMS": "1", "channels-INITIAL_FORMS": "0",
+            "channels-MIN_NUM_FORMS": "1", "channels-MAX_NUM_FORMS": "1000",
+            "channels-0-channel": "", "channels-0-target": "",
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "at most 2000 characters")
+        self.assertContains(resp, 'id="id_channels-0-channel_error"')  # the one required channel row is enforced
+        self.assertFalse(Alert.objects.exists())
+
     def test_admin_pages_render(self):
         admin = User.objects.create_superuser("root", "root@example.com", "pw-123456")
         self.client.force_login(admin)

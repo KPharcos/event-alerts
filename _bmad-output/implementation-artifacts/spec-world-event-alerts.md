@@ -6,7 +6,7 @@ status: 'done'
 baseline_revision: '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
 review_loop_iteration: 0
 followup_pass: true
-followup_review_recommended: true
+followup_review_recommended: false
 context: []
 warnings: ['multiple-goals', 'oversized']
 deferred: []
@@ -69,11 +69,11 @@ Greenfield: project contains only BMAD tooling (`_bmad/`, `.claude/`, `_bmad-out
 - `alerts/channels.py` -- `CHANNELS = {"email": Channel(label, validate, send), "slack": ...}`; email `send` uses `django.core.mail.send_mail` to target; slack `send` POSTs `{"text": ...}` JSON via `urllib.request` with 10s timeout; validators raise `ValidationError` -- channel registry, the extension point.
 - `alerts/sources.py` -- `SOURCES = {"usgs": fetch_usgs, "rss": fetch_rss, "gdacs": fetch_gdacs}`; each returns list of dicts matching `Event` fields. USGS: `https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.geojson` (category disaster, external_id = feature id). RSS: each feed in settings, `guid` or `link` as external_id (category news), one failing feed does not skip the others. GDACS: `https://www.gdacs.org/xml/rss.xml` (RSS 2.0, category disaster, `guid` as external_id), skip earthquake items (`guid` starting `EQ`, USGS covers quakes) -- free feeds, no keys. No market feed: market events come from admin entry only.
 - `alerts/matching.py` -- `match_event(event, alerts) -> list[int] | None` (None = retry later): see Design Notes -- AI matching.
-- `alerts/management/commands/poll_events.py` -- fetch every source (try/except per source), `get_or_create` events, then for each event with `matched_at` null: match against active alerts, deliver each matched alert's channels, write `Notification` (skip existing pair), set `matched_at`; each run also re-sends `failed` notifications with `attempts < 3` (increment `attempts`, update status/error) unless matcher returned None -- the cron job.
+- `alerts/management/commands/poll_events.py` -- fetch every source (try/except per source), `get_or_create` events, then for each event with `matched_at` null: match against active alerts, deliver each matched alert's channels, write `Notification` (skip existing pair), set `matched_at`; each run also re-sends `failed` notifications with `attempts < 3` (increment `attempts`, update status/error), every run, whether or not matching succeeded -- the cron job.
 - `alerts/admin.py` -- register `Event` (list: title, category, source, occurred_at, matched_at; filters), `Alert` with `AlertChannel` tabular inline (list: name, user, active), `Notification` read-only (list: event, alert_channel, status, created_at; filter status, channel) -- admin view.
 - `alerts/views.py`, `alerts/forms.py`, `alerts/urls.py`, `alerts/templates/...`, `templates/registration/login.html` -- login-required list/create/update/delete for own alerts (queryset filtered by `request.user`), channels edited via `inlineformset_factory(Alert, AlertChannel, extra=2, can_delete=True)`; minimal plain HTML with a logout POST form -- user-facing alert management.
 - `alerts/tests.py` -- Django `TestCase`s covering every I/O matrix row with `unittest.mock` for Anthropic client, `urllib.request.urlopen` and sources -- matrix coverage.
-- `README.md` -- setup (`uv sync`, migrate, createsuperuser), env vars, cron line `*/5 * * * * cd <dir> && flock -n /tmp/poll_events.lock uv run python manage.py poll_events`, how to add a channel and a source -- operator docs.
+- `README.md` -- setup (`uv sync`, migrate, createsuperuser), env vars, cron line `*/5 * * * * cd <dir> && flock -n ~/poll_events.lock uv run python manage.py poll_events >> ~/poll_events.log 2>&1`, how to add a channel and a source -- operator docs.
 
 **Acceptance Criteria:**
 - Given a superuser, when they open `/admin/`, then they can create users, alerts with channels, and events, and see the notification log filtered by status.
@@ -101,7 +101,16 @@ Greenfield: project contains only BMAD tooling (`_bmad/`, `.claude/`, `_bmad-out
 - Known-bad state avoided: silent permanent loss for all users. Cost accepted: a permanently bad event is retried once per run, with an error log line.
 - Flag: if Anthropic bills rejected requests, revisit this.
 
-## Review Triage Log
+### 2026-11-19 — User decisions after review pass 3 (prompt 12, "Fix those!")
+- Trigger: open items from the pass-3 triage and the codebase map.
+- Amended (user chose all four):
+  - Spec text now matches the code: the cron lock is `~/poll_events.lock` with a log redirect, and failed sends retry every run whether or not matching succeeded.
+  - `send_slack` rechecks the hooks.slack.com prefix and refuses redirects; admin alerts use `AlertForm`, so the 2000-character cap applies there too.
+  - An alert needs at least one channel: `BaseChannelFormSet` with `min_num=1, validate_min=True`, in the user form and the admin inline. This overrides the carried pass-1 reject.
+  - `DJANGO_CSRF_TRUSTED_ORIGINS` env var, `STATIC_ROOT = BASE_DIR / 'staticfiles'`, and README collectstatic step. This overrides the carried "deployment out of scope" reject. Secure cookies and HSTS are still not set.
+- Known-bad state avoided: alerts that never notify; SSRF through ORM-written targets or redirects; forms failing behind an HTTPS proxy; unstyled admin with DEBUG off.
+- KEEP: everything else.
+
 
 ### 2026-11-19 — Review pass
 - verdicts: 49 findings — high 4, medium 24, low 15, false 6, maybe-false 0
@@ -288,6 +297,51 @@ Greenfield: project contains only BMAD tooling (`_bmad/`, `.claude/`, `_bmad-out
   - `[false]` `[reject]` IA-9 USGS 4.5+ and the GDACS EQ drop act as a pre-filter — the Never rule covers the matcher's inputs; feed selection is not a pre-filter in front of it.
   - `[false]` `[reject]` IA-10 extras beyond intent — GDACS and retries were user decisions; escaping and newline handling were review patches; auth routes are login, logout and password pages; the credit string match is gone.
 
+### 2026-11-19 — Review pass (follow-up pass 4, diff = whole code incl. prompt-12 fixes, baseline = empty tree)
+- verdicts: 41 findings — high 0, medium 14, low 20, false 7, maybe-false 0
+- findings:
+  - `[low]` `[reject]` BH-1 random SECRET_KEY per worker; no fail-fast — carried from passes 1-3 (documented fallback; failing fast would also stop the cron poller).
+  - `[low]` `[reject]` BH-2 no SECURE_PROXY_SSL_HEADER or secure cookie flags — prompt-12 scope was CSRF origins and STATIC_ROOT; secure cookies by default would break plain-HTTP runs. Deployment-specific.
+  - `[low]` `[patch]` BH-3 events that kept failing are aged out after 24 h with no log line — warning logged with the count of feed events marked done. Aging out itself is the user's 24 h decision.
+  - `[medium]` `[patch]` BH-4 an event that always fails (e.g. huge summary) is retried forever and spends the failure budget — RSS/GDACS summary capped at 2000 chars; matching runs newest first, so a failing event sinks to the back.
+  - `[false]` `[reject]` BH-5 failed sends have no backoff and no admin re-send — carried from passes 2-3: user chose auto-retry, max 3 (round 4).
+  - `[low]` `[reject]` BH-6 plain text in one user's alert can steer Claude to another user's id — carried from pass 1 (alert tags, system prompt marks descriptions untrusted; escaping added in pass 2).
+  - `[low]` `[reject]` BH-7 updates to known events (GDACS escalation, USGS revisions) never seen — carried from pass 2 (new feature).
+  - `[low]` `[patch]` BH-8 feed HTML passes into summary raw — `strip_tags` on RSS/GDACS descriptions; test added.
+  - `[low]` `[reject]` BH-9 one bad USGS feature drops the batch — carried from passes 1-3.
+  - `[low]` `[reject]` BH-10 no uniqueness on (alert, channel, target) — carried from pass 1 (user error).
+  - `[medium]` `[patch]` BH-11 admin event with a source other than literal `manual` and an old date is silently marked done — age-out now applies only to sources in `SOURCES`; any admin source always matches. README updated; test added.
+  - `[medium]` `[patch]` BH-12 `_opener` wiring untested; dropping `_NoRedirect` passes the suite — test asserts `_opener` contains a `_NoRedirect` handler.
+  - `[medium]` `[patch]` BH-13 tests import undeclared `httpx2` — carried from passes 1-3 (patch row; httpx2 stays test-only via anthropic). No new change.
+  - `[low]` `[patch]` BH-14 RSS fixture says Wed for a Thursday — fixed.
+  - `[medium]` `[patch]` VG-1 no-redirect guard not wired into what tests check — same as BH-12 (pre-verified).
+  - `[medium]` `[patch]` VG-2 "3 failures in a row" reset never exercised — test with fail, fail, ok, fail, fail, ok: all 6 events get a call.
+  - `[medium]` `[patch]` VG-3 SMTP branch of MAILERS uncovered — settings test with EMAIL_HOST/PORT/USE_TLS=false checks backend, host, int port, use_tls, timeout. Pass-2 reject ("reload is awkward") no longer holds: pass 3 added the reload pattern.
+  - `[medium]` `[patch]` EC-1 three always-failing events at the head of the queue block every later event — newest-first ordering plus the summary cap (the likely 400 cause).
+  - `[low]` `[reject]` EC-2 always-rejected manual event never ages out — with newest-first ordering it no longer blocks newer events; one failing call per run remains. An attempt counter needs a migration.
+  - `[medium]` `[patch]` EC-3 admin event with any source but `manual` aged out silently — same as BH-11.
+  - `[low]` `[reject]` EC-4 DB or delivery errors in process() count toward the Claude breaker — carried from pass 3 (exceptions count by design).
+  - `[low]` `[patch]` EC-5 failed send of a paused alert re-sent days later on reactivation — retries limited to notifications from the last 24 h; test added.
+  - `[low]` `[reject]` EC-6 one item failing get_or_create skips the rest of the source — carried from pass 2 (one bad item).
+  - `[low]` `[reject]` EC-7 USGS feature without time/id drops the feed — carried from passes 1-3.
+  - `[low]` `[reject]` EC-8 undated RSS items get now() and bypass the 24 h window — only on first sight (dedupe); BBC and GDACS send pubDate.
+  - `[low]` `[reject]` EC-9 same guid in two RSS feeds dedupes the second — namespacing ids re-keys existing events and re-notifies them.
+  - `[medium]` `[patch]` EC-10 very large description gives a 400 every run — summary capped at 2000 chars (same as BH-4).
+  - `[low]` `[reject]` EC-11 huge or endless feed body — carried from pass 3 (fixed publishers).
+  - `[medium]` `[patch]` EC-12 admin can delete an alert's only channel (inline has no validate_min) — verified in django/contrib/admin/options.py (defaults set min_num only); `get_formset(..., validate_min=True)`; test added.
+  - `[false]` `[reject]` EC-13 non-numeric EMAIL_PORT crashes at import — loud failure on bad config at startup is correct behaviour.
+  - `[false]` `[reject]` IA-1 REFUSAL only checked against a mock — carried from pass 3 (both branches end the same way, each tested).
+  - `[false]` `[reject]` IA-2 Claude call shape checked only against mocks — the spec forbids network in tests; kwargs are asserted.
+  - `[medium]` `[patch]` IA-3 MANUAL_EVENT with any other source silently aged out — same as BH-11.
+  - `[low]` `[reject]` IA-4 retry can resend a message Slack accepted before a timeout — carried from pass 3 (crash/ambiguous-failure window).
+  - `[medium]` `[patch]` IA-5 failing events stop the run (R3a vs R3b) — same as EC-1 (newest-first, summary cap); the 3-failure breaker stays by design.
+  - `[false]` `[reject]` IA-6 24 h window vs "every new event" — user decision in pass 3.
+  - `[false]` `[reject]` IA-7 Slack POST and feeds only exercised through mocks — the spec forbids network in tests.
+  - `[low]` `[reject]` IA-8 admin-inline Slack validation not tested directly — same `AlertChannel.clean()` as the user form, which is tested with four hostile URLs.
+  - `[medium]` `[patch]` IA-9 SMTP config untested — same as VG-3.
+  - `[low]` `[reject]` IA-10 adding a channel needs a migration — carried (README documents it).
+  - `[false]` `[reject]` IA-11 age cutoff as a pre-filter (R2b) — carried from pass 3 (the Never rule covers the matcher's inputs; the window is the user's decision).
+
 ## Design Notes
 
 Matcher golden example (SDK `anthropic`, structured output via Pydantic; check `stop_reason` before reading output):
@@ -371,3 +425,21 @@ Status: done
 - Deployment hardening (CSRF trusted origins behind an HTTPS proxy, STATIC_ROOT, secure cookies) stays rejected under the carry rule, which called it deployment out of scope. The triage rule allows "out of scope" only when the intent excludes it, and the intent does not.
 
 **Residual risks:** the matching prompt has never run against the real Claude API; SMTP is untested against a real server; there is no market feed; a hanging Claude API still costs up to about 9 minutes per run under flock; the first poll makes at most about one call per event from the last 24 hours.
+
+### Follow-up review pass 4 (2026-11-19)
+
+Status: done
+
+**Summary:** Fourth independent review of the whole code, including the prompt-12 fixes (Slack send-time guard, admin description cap, one-channel minimum, CSRF origins, STATIC_ROOT). 41 findings: high 0, medium 14, low 20, false 7. Patched 18 rows; rejected 23.
+
+**Files changed this pass:** `alerts/admin.py` (inline `validate_min=True`); `alerts/management/commands/poll_events.py` (age-out only for feed sources with a warning count, newest first, retries limited to the last 24 h); `alerts/sources.py` (summary `strip_tags` and 2000-char cap); `README.md` (admin event sources, retry window); `alerts/tests.py` (46 → 53 tests).
+
+**Review findings breakdown:** patched rows medium 9, low 4, plus 5 duplicate rows sharing those fixes. Deferred: none. Rejected: carried decisions, user decisions, and loud-by-design failures; reasons in the triage log.
+
+**Follow-up review recommended: false.** This was a follow-up pass and patched no `high`, so the work has converged.
+
+**Verification:** `manage.py check` no issues; `makemigrations --check --dry-run` no changes; `manage.py test alerts` 53/53 OK.
+
+**Workflow deviations:** reviewers ran in the background (the harness); patches applied by the orchestrator.
+
+**Residual risks:** matcher and SMTP never run against real services; no market feed; secure cookies and HSTS not set; a permanently rejected admin event costs one failing Claude call per run.
